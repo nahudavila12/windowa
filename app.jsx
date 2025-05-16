@@ -115,7 +115,7 @@ export default function App() {
     const removeRawData = window.electronAPI.onRawDataUpdate(logEntry => {
       console.log('Datos crudos recibidos en React:', logEntry);
       let valoresParseados = [];
-      if (tipoDispositivo === 'dinamometro') {
+      if (tipoDispositivo === 'Valkyria Dynamometer') {
         if (Array.isArray(logEntry.data)) {
           valoresParseados = parseDinamometroData(logEntry.data);
         } else if (typeof logEntry.data === 'string') {
@@ -124,14 +124,14 @@ export default function App() {
         if (isTestRunning && valoresParseados.length > 0) {
           setCurrentTest(prev => [...prev, ...valoresParseados]);
         }
-      } else if (tipoDispositivo === 'balance') {
+      } else if (tipoDispositivo === 'Valkyria Platform') {
         if (typeof logEntry.data === 'string') {
           valoresParseados = parseBalanceHexString(logEntry.data);
         }
         if (isTestRunning && valoresParseados.length > 0) {
           setCurrentTest(prev => [...prev, ...valoresParseados]);
         }
-      } else if (tipoDispositivo === 'libre') {
+      } else if (tipoDispositivo === 'Valkyria Free Charge') {
         if (typeof logEntry.data === 'string') {
           valoresParseados = parseLibreHexString(logEntry.data);
         }
