@@ -64,6 +64,22 @@ function exportTestsToCSV(tests) {
   URL.revokeObjectURL(url);
 }
 
+const parseadores = {
+  'Valkyria Dynamometer': data => {
+    if (Array.isArray(data)) return parseDinamometroData(data);
+    if (typeof data === 'string') return parseDinamometroHexString(data);
+    return [];
+  },
+  'Valkyria Platform': data => {
+    if (typeof data === 'string') return parseBalanceHexString(data);
+    return [];
+  },
+  'Valkyria Free Charge 5': data => {
+    if (typeof data === 'string') return parseLibreHexString(data);
+    return [];
+  }
+};
+
 export default function App() {
   const [status, setStatus] = useState('Esperando acciones...');
   const [devices, setDevices] = useState([]);
@@ -78,7 +94,7 @@ export default function App() {
   const [isTestRunning, setIsTestRunning] = useState(false);
   const [nombreTest, setNombreTest] = useState('');
   const [showNombreModal, setShowNombreModal] = useState(false);
-  const [tipoDispositivo, setTipoDispositivo] = useState('dinamometro'); // 'dinamometro', 'balance' o 'libre'
+  const [tipoDispositivo, setTipoDispositivo] = useState('Valkyria Dynamometer'); // 'Valkyria Dynamometer', 'Valkyria Platform' o 'Valkyria Free Charge 5'
 
   useEffect(() => {
     // Suscribirse a eventos de electronAPI
@@ -113,33 +129,11 @@ export default function App() {
     });
 
     const removeRawData = window.electronAPI.onRawDataUpdate(logEntry => {
-      console.log('Datos crudos recibidos en React:', logEntry);
-      let valoresParseados = [];
-      if (tipoDispositivo === 'Valkyria Dynamometer') {
-        if (Array.isArray(logEntry.data)) {
-          valoresParseados = parseDinamometroData(logEntry.data);
-        } else if (typeof logEntry.data === 'string') {
-          valoresParseados = parseDinamometroHexString(logEntry.data);
-        }
-        if (isTestRunning && valoresParseados.length > 0) {
-          setCurrentTest(prev => [...prev, ...valoresParseados]);
-        }
-      } else if (tipoDispositivo === 'Valkyria Platform') {
-        if (typeof logEntry.data === 'string') {
-          valoresParseados = parseBalanceHexString(logEntry.data);
-        }
-        if (isTestRunning && valoresParseados.length > 0) {
-          setCurrentTest(prev => [...prev, ...valoresParseados]);
-        }
-      } else if (tipoDispositivo === 'Valkyria Free Charge 5') {
-        if (typeof logEntry.data === 'string') {
-          valoresParseados = parseLibreHexString(logEntry.data);
-        }
-        if (isTestRunning && valoresParseados.length > 0) {
-          setCurrentTest(prev => [...prev, ...valoresParseados]);
-        }
+      const parser = parseadores[tipoDispositivo] || (() => []);
+      const valoresParseados = parser(logEntry.data);
+      if (isTestRunning && valoresParseados.length > 0) {
+        setCurrentTest(prev => [...prev, ...valoresParseados]);
       }
-      console.log('Valores parseados:', valoresParseados);
       setRawDataLogs(prev => [
         { ...logEntry, valoresParseados },
         ...prev.slice(0, 199)
@@ -227,9 +221,9 @@ export default function App() {
       <div style={{ marginBottom: 10 }}>
         <label>Tipo de dispositivo: </label>
         <select value={tipoDispositivo} onChange={e => setTipoDispositivo(e.target.value)}>
-          <option value="dinamometro">Dinamómetro</option>
-          <option value="balance">Balance (Plataforma)</option>
-          <option value="libre">Libre (Encoder)</option>
+          <option value="Valkyria Dynamometer">Valkyria Dynamometer</option>
+          <option value="Valkyria Platform">Valkyria Platform</option>
+          <option value="Valkyria Free Charge 5">Valkyria Free Charge 5</option>
         </select>
       </div>
       {!connectedDevice && (
@@ -243,7 +237,7 @@ export default function App() {
         <div>
           <h2>Dispositivos Encontrados:</h2>
           <ul>
-            {devices.map(device => (
+            {devices.filter(device => (device.name || '').startsWith('Valkyria')).map(device => (
               <li key={device.id} style={{ marginBottom: 8 }}>
                 {device.name || 'Desconocido'} (ID: {device.id})
                 <button style={{ marginLeft: 10 }} onClick={() => handleConnect(device.id)} disabled={!!connectedDevice}>
@@ -286,15 +280,19 @@ export default function App() {
             {tests.map((test, idx) => (
               <div key={idx} style={{marginBottom: 10}}>
                 <strong>Test #{idx + 1} ({test.tipo || 'dinamometro'}):</strong>
-                {test.tipo === 'balance' ? (
+                {test.tipo === 'Valkyria Platform' ? (
                   <>
                     <br/>
                     <em>Canal 1:</em> {test.valores.map((v, i) => v.fuerza1?.toFixed(2)).join(', ')}<br/>
                     <em>Canal 2:</em> {test.valores.map((v, i) => v.fuerza2?.toFixed(2)).join(', ')}<br/>
                   </>
-                ) : test.tipo === 'libre' ? (
+                ) : test.tipo === 'Valkyria Free Charge 5' ? (
                   <>
                     <em>Distancias:</em> {test.valores.map((v, i) => v?.toFixed(2)).join(', ')}<br/>
+                  </>
+                ) : test.tipo === 'Valkyria Dynamometer' ? (
+                  <>
+                    <em>Fuerzas:</em> {test.valores.map((v, i) => v?.toFixed ? v.toFixed(2) : v).join(', ')}<br/>
                   </>
                 ) : (
                   <>
@@ -304,23 +302,25 @@ export default function App() {
                 <em>Nombre/Nota:</em> {test.nombre || '(sin nombre)'}
                 <ResponsiveContainer width="100%" height={120}>
                   <LineChart data={
-                    test.tipo === 'balance'
+                    test.tipo === 'Valkyria Platform'
                       ? test.valores.map((v, i) => ({ muestra: i + 1, fuerza1: v.fuerza1, fuerza2: v.fuerza2 }))
-                      : test.tipo === 'libre'
+                      : test.tipo === 'Valkyria Free Charge 5'
                         ? test.valores.map((v, i) => ({ muestra: i + 1, distancia: v }))
-                        : test.valores.map((v, i) => ({ muestra: i + 1, valor: v }))
+                        : test.tipo === 'Valkyria Dynamometer'
+                          ? test.valores.map((v, i) => ({ muestra: i + 1, valor: v }))
+                          : test.valores.map((v, i) => ({ muestra: i + 1, valor: v }))
                   }>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="muestra" label={{ value: 'Muestra', position: 'insideBottomRight', offset: 0 }} />
-                    <YAxis label={{ value: test.tipo === 'libre' ? 'Distancia' : 'Fuerza', angle: -90, position: 'insideLeft' }} />
+                    <YAxis label={{ value: test.tipo === 'Valkyria Free Charge 5' ? 'Distancia' : (test.tipo === 'Valkyria Platform' ? 'Fuerza' : 'Valor'), angle: -90, position: 'insideLeft' }} />
                     <Tooltip />
                     <Legend />
-                    {test.tipo === 'balance' ? (
+                    {test.tipo === 'Valkyria Platform' ? (
                       <>
                         <Line type="monotone" dataKey="fuerza1" stroke="#82ca9d" name="Canal 1" />
                         <Line type="monotone" dataKey="fuerza2" stroke="#8884d8" name="Canal 2" />
                       </>
-                    ) : test.tipo === 'libre' ? (
+                    ) : test.tipo === 'Valkyria Free Charge 5' ? (
                       <Line type="monotone" dataKey="distancia" stroke="#ff7300" name="Distancia" />
                     ) : (
                       <Line type="monotone" dataKey="valor" stroke="#82ca9d" />
