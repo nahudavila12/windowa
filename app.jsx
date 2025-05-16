@@ -131,7 +131,7 @@ export default function App() {
         if (isTestRunning && valoresParseados.length > 0) {
           setCurrentTest(prev => [...prev, ...valoresParseados]);
         }
-      } else if (tipoDispositivo === 'Valkyria Free Charge') {
+      } else if (tipoDispositivo === 'Valkyria Free Charge 5') {
         if (typeof logEntry.data === 'string') {
           valoresParseados = parseLibreHexString(logEntry.data);
         }
