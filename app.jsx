@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { parseDinamometroData, parseDinamometroHexString } from './src/dinamometro/parser.js';
+import { parseBalanceHexString } from './src/balance/parser.js';
+import { parseLibreHexString } from './src/libre/parser.js';
 
 // Estilos para el modal y su contenido
 const modalStyles = {
@@ -76,6 +78,7 @@ export default function App() {
   const [isTestRunning, setIsTestRunning] = useState(false);
   const [nombreTest, setNombreTest] = useState('');
   const [showNombreModal, setShowNombreModal] = useState(false);
+  const [tipoDispositivo, setTipoDispositivo] = useState('dinamometro'); // 'dinamometro', 'balance' o 'libre'
 
   useEffect(() => {
     // Suscribirse a eventos de electronAPI
@@ -111,17 +114,32 @@ export default function App() {
 
     const removeRawData = window.electronAPI.onRawDataUpdate(logEntry => {
       console.log('Datos crudos recibidos en React:', logEntry);
-      // Intentar parsear los datos crudos recibidos
       let valoresParseados = [];
-      if (Array.isArray(logEntry.data)) {
-        valoresParseados = parseDinamometroData(logEntry.data);
-      } else if (typeof logEntry.data === 'string') {
-        valoresParseados = parseDinamometroHexString(logEntry.data);
+      if (tipoDispositivo === 'dinamometro') {
+        if (Array.isArray(logEntry.data)) {
+          valoresParseados = parseDinamometroData(logEntry.data);
+        } else if (typeof logEntry.data === 'string') {
+          valoresParseados = parseDinamometroHexString(logEntry.data);
+        }
+        if (isTestRunning && valoresParseados.length > 0) {
+          setCurrentTest(prev => [...prev, ...valoresParseados]);
+        }
+      } else if (tipoDispositivo === 'balance') {
+        if (typeof logEntry.data === 'string') {
+          valoresParseados = parseBalanceHexString(logEntry.data);
+        }
+        if (isTestRunning && valoresParseados.length > 0) {
+          setCurrentTest(prev => [...prev, ...valoresParseados]);
+        }
+      } else if (tipoDispositivo === 'libre') {
+        if (typeof logEntry.data === 'string') {
+          valoresParseados = parseLibreHexString(logEntry.data);
+        }
+        if (isTestRunning && valoresParseados.length > 0) {
+          setCurrentTest(prev => [...prev, ...valoresParseados]);
+        }
       }
-      console.log('Valores parseados del dinamómetro:', valoresParseados);
-      if (isTestRunning && valoresParseados.length > 0) {
-        setCurrentTest(prev => [...prev, ...valoresParseados]);
-      }
+      console.log('Valores parseados:', valoresParseados);
       setRawDataLogs(prev => [
         { ...logEntry, valoresParseados },
         ...prev.slice(0, 199)
@@ -135,7 +153,7 @@ export default function App() {
       removeHeartRate();
       removeRawData();
     };
-  }, [connectedDevice, isTestRunning]);
+  }, [connectedDevice, isTestRunning, tipoDispositivo]);
 
   const handleScan = async () => {
     setStatus('Iniciando escaneo...');
@@ -194,7 +212,7 @@ export default function App() {
 
   const handleGuardarTest = () => {
     if (currentTest.length > 0) {
-      setTests(prev => [...prev, { valores: currentTest, nombre: nombreTest }]);
+      setTests(prev => [...prev, { valores: currentTest, nombre: nombreTest, tipo: tipoDispositivo }]);
     }
     setCurrentTest([]);
     setNombreTest('');
@@ -204,8 +222,16 @@ export default function App() {
 
   return (
     <div style={{ fontFamily: 'sans-serif', margin: 20 }}>
-      <h1>Monitor de BLE</h1>
+      <h1>Monitor BLE y Dispositivos Ivolution</h1>
       <div style={{ marginBottom: 15, padding: 10, background: '#e9ecef', borderRadius: 4 }}>{status}</div>
+      <div style={{ marginBottom: 10 }}>
+        <label>Tipo de dispositivo: </label>
+        <select value={tipoDispositivo} onChange={e => setTipoDispositivo(e.target.value)}>
+          <option value="dinamometro">Dinamómetro</option>
+          <option value="balance">Balance (Plataforma)</option>
+          <option value="libre">Libre (Encoder)</option>
+        </select>
+      </div>
       {!connectedDevice && (
         isScanning ? (
           <button onClick={handleStopScan}>Detener Escaneo</button>
@@ -233,11 +259,11 @@ export default function App() {
           <h2>Información del Dispositivo Conectado:</h2>
           <div>Conectado a: {connectedDevice.name || connectedDevice.id}</div>
           <div style={{ fontWeight: 'bold', color: '#007bff', marginTop: 10 }}>
-            Ritmo Cardíaco: {heartRate === null ? 'Esperando datos...' : `${heartRate} BPM`}
+            Fuerza: {heartRate === null ? 'Esperando datos...' : `${heartRate} BPM`}
           </div>
           {hrHistory.length > 1 && (
             <div style={{ marginTop: 30 }}>
-              <h3>Historial de Ritmo Cardíaco</h3>
+              <h3>Historial </h3>
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={hrHistory} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -259,16 +285,46 @@ export default function App() {
             <button onClick={() => exportTestsToCSV(tests)} disabled={!tests.length}>Exportar tests a CSV</button>
             {tests.map((test, idx) => (
               <div key={idx} style={{marginBottom: 10}}>
-                <strong>Test #{idx + 1}:</strong> {test.valores.join(', ')}<br/>
+                <strong>Test #{idx + 1} ({test.tipo || 'dinamometro'}):</strong>
+                {test.tipo === 'balance' ? (
+                  <>
+                    <br/>
+                    <em>Canal 1:</em> {test.valores.map((v, i) => v.fuerza1?.toFixed(2)).join(', ')}<br/>
+                    <em>Canal 2:</em> {test.valores.map((v, i) => v.fuerza2?.toFixed(2)).join(', ')}<br/>
+                  </>
+                ) : test.tipo === 'libre' ? (
+                  <>
+                    <em>Distancias:</em> {test.valores.map((v, i) => v?.toFixed(2)).join(', ')}<br/>
+                  </>
+                ) : (
+                  <>
+                    {test.valores.join(', ')}<br/>
+                  </>
+                )}
                 <em>Nombre/Nota:</em> {test.nombre || '(sin nombre)'}
                 <ResponsiveContainer width="100%" height={120}>
-                  <LineChart data={test.valores.map((v, i) => ({ muestra: i + 1, valor: v }))}>
+                  <LineChart data={
+                    test.tipo === 'balance'
+                      ? test.valores.map((v, i) => ({ muestra: i + 1, fuerza1: v.fuerza1, fuerza2: v.fuerza2 }))
+                      : test.tipo === 'libre'
+                        ? test.valores.map((v, i) => ({ muestra: i + 1, distancia: v }))
+                        : test.valores.map((v, i) => ({ muestra: i + 1, valor: v }))
+                  }>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="muestra" label={{ value: 'Muestra', position: 'insideBottomRight', offset: 0 }} />
-                    <YAxis label={{ value: 'Fuerza', angle: -90, position: 'insideLeft' }} />
+                    <YAxis label={{ value: test.tipo === 'libre' ? 'Distancia' : 'Fuerza', angle: -90, position: 'insideLeft' }} />
                     <Tooltip />
                     <Legend />
-                    <Line type="monotone" dataKey="valor" stroke="#82ca9d" />
+                    {test.tipo === 'balance' ? (
+                      <>
+                        <Line type="monotone" dataKey="fuerza1" stroke="#82ca9d" name="Canal 1" />
+                        <Line type="monotone" dataKey="fuerza2" stroke="#8884d8" name="Canal 2" />
+                      </>
+                    ) : test.tipo === 'libre' ? (
+                      <Line type="monotone" dataKey="distancia" stroke="#ff7300" name="Distancia" />
+                    ) : (
+                      <Line type="monotone" dataKey="valor" stroke="#82ca9d" />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -289,7 +345,11 @@ export default function App() {
                     <div style={codeBlockStyles}>{log.data}</div>
                     {log.valoresParseados && log.valoresParseados.length > 0 && (
                       <div style={{marginTop: 4, color: '#007bff'}}>
-                        <strong>Parseado:</strong> {log.valoresParseados.join(', ')}
+                        <strong>Parseado:</strong> {Array.isArray(log.valoresParseados) && log.valoresParseados[0] && log.valoresParseados[0].fuerza1 !== undefined
+                          ? log.valoresParseados.map((v, i) => `(${v.fuerza1?.toFixed(2)}, ${v.fuerza2?.toFixed(2)})`).join(', ')
+                          : Array.isArray(log.valoresParseados) && typeof log.valoresParseados[0] === 'number'
+                            ? log.valoresParseados.map((v, i) => v?.toFixed(2)).join(', ')
+                            : log.valoresParseados.join(', ')}
                       </div>
                     )}
                   </li>
