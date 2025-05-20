@@ -1,5 +1,5 @@
 // Parser para datos del dinamómetro Pushpull
-// Convierte un array de strings hexadecimales a un array de números flotantes
+// Convierte un array de strings hexadecimales a un array de objetos {valor, timestamp}
 
 function hexToAscii(hex) {
   let str = '';
@@ -19,7 +19,7 @@ export function parseDinamometroData(datosHex) {
     if (ascii === '\r\n') {
       if (buffer.length > 0) {
         const num = parseFloat(buffer);
-        if (!isNaN(num)) resultados.push(num);
+        if (!isNaN(num)) resultados.push({ valor: num, timestamp: Date.now() });
         buffer = '';
       }
     } else {
@@ -29,7 +29,7 @@ export function parseDinamometroData(datosHex) {
   // Si queda algo en el buffer al final
   if (buffer.length > 0) {
     const num = parseFloat(buffer);
-    if (!isNaN(num)) resultados.push(num);
+    if (!isNaN(num)) resultados.push({ valor: num, timestamp: Date.now() });
   }
   return resultados;
 }
@@ -37,5 +37,5 @@ export function parseDinamometroData(datosHex) {
 // Si recibes un string hexadecimal concatenado, puedes usar esto:
 export function parseDinamometroHexString(hexString) {
   const ascii = hexToAscii(hexString);
-  return ascii.split('\r\n').filter(v => v.length > 0).map(Number);
+  return ascii.split('\r\n').filter(v => v.length > 0).map(num => ({ valor: Number(num), timestamp: Date.now() }));
 } 

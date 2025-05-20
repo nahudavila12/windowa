@@ -1,24 +1,31 @@
-// Parser para datos del encoder Libre (Ivolution)
-// Recibe un string hexadecimal largo y devuelve un array de distancias lineales
+// Parser para datos del encoder Libre (formato antiguo tipo Valkyria)
+// Recibe un string con muestras tipo '123.45R' y devuelve un array de objetos { timestamp, valor }
 
 /**
- * Parsea una cadena hexadecimal recibida del encoder Libre.
- * Convierte a ASCII, separa por 'T' y parsea los valores a float.
- * @param {string} hexString
- * @returns {number[]} Array de distancias
+ * Parsea una cadena recibida del encoder Libre (formato: valorR).
+ * Devuelve un array de objetos { timestamp, valor }.
+ * @param {string} dataString
+ * @returns {{timestamp: number, valor: number}[]} Array de muestras con timestamp
  */
-export function parseLibreHexString(hexString) {
-  // Elimina espacios y pasa a minúsculas
-  const cleanHex = hexString.replace(/\s+/g, '').toLowerCase();
-  // Convierte de hex a ASCII
-  let ascii = '';
-  for (let i = 0; i < cleanHex.length; i += 2) {
-    ascii += String.fromCharCode(parseInt(cleanHex.substr(i, 2), 16));
+export function parseLibreString(dataString) {
+  // Busca todos los valores que terminen en 'R' (ej: 123.45R, -56.7R)
+  const regex = /(-?\d+(?:\.\d+)?)R/g;
+  const resultados = [];
+  let match;
+  while ((match = regex.exec(dataString)) !== null) {
+    resultados.push({
+      timestamp: Date.now(),
+      valor: parseFloat(match[1])
+    });
   }
-  // Divide por 'T' y parsea los valores
-  return ascii.split('T')
-    .map(v => v.replace(/[^0-9\.-]/g, ''))
-    .filter(v => v.length > 0)
-    .map(parseFloat)
-    .filter(v => !isNaN(v));
-} 
+  return resultados;
+}
+
+// Ejemplo de uso del parser:
+// (Descomenta para probar en tu entorno Node.js)
+/*
+const ejemploDatos = "123.45R-56.7R0.22RerrorDatoR";
+const resultados = parseLibreString(ejemploDatos);
+console.log(resultados);
+// Salida esperada: array de objetos { timestamp, valor }
+*/ 

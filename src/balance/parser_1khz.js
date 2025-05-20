@@ -1,14 +1,14 @@
-// Parser para datos de la plataforma Balance (Ivolution)
+// Parser para datos de la plataforma 1kHz (Ivolution)
 // Recibe un string hexadecimal largo y devuelve un array de objetos {fuerza1, fuerza2, timestamp}
 
 /**
- * Parsea una cadena hexadecimal recibida de la plataforma Balance.
+ * Parsea una cadena hexadecimal recibida de la plataforma 1kHz.
  * Cada paquete válido es: 4c3aHH1LL1HH2LL2 (12 caracteres hex)
  * Donde HH1,LL1 = fuerza1, HH2,LL2 = fuerza2 (little endian), fuerza = valor / 10.0
  * @param {string} hexString
  * @returns {{fuerza1: number, fuerza2: number, timestamp: number}[]} Array de pares de fuerzas con timestamp
  */
-export function parseBalanceHexString(hexString) {
+export function parse1kHzHexString(hexString) {
   const pares = [];
   const cleanHex = hexString.replace(/\s+/g, '').toLowerCase();
   for (let i = 0; i < cleanHex.length - 11; i += 12) {
