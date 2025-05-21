@@ -60,17 +60,16 @@ function abrirPuertoUSB(path, baudRate = 115200) {
       } else if (tipoDispositivo === 'Valkyria Platform') {
         usbPort.on('data', (data) => {
           const hexString = data.toString('hex');
-          if (onDataCallback) onDataCallback(hexString, parseBalanceHexString(hexString));
-          if (hexString === '49') { // 'I'
-            usbPort.write(Buffer.from(`X:${idMachine}\n`));
-          } else if (hexString === '52') { // 'R'
-            contador = 0;
+          // Detectar si es 1kHz o 80Hz por la frecuencia de llegada o el tamaño del paquete
+          // Aquí, si el string es muy largo y llegan muchos paquetes por segundo, asumimos 1kHz
+          // Si no, 80Hz
+          let parsed = [];
+          if (hexString.length > 120) {
+            parsed = parse1kHzHexString(hexString);
+          } else {
+            parsed = parseBalanceHexString(hexString);
           }
-        });
-      } else if (tipoDispositivo === 'Valkyria Platform ') {
-        usbPort.on('data', (data) => {
-          const hexString = data.toString('hex');
-          if (onDataCallback) onDataCallback(hexString, parse1kHzHexString(hexString));
+          if (onDataCallback) onDataCallback(hexString, parsed);
           if (hexString === '49') { // 'I'
             usbPort.write(Buffer.from(`X:${idMachine}\n`));
           } else if (hexString === '52') { // 'R'
