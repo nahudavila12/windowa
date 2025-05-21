@@ -1,8 +1,6 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const noble = require('noble-winrt');
-const { SerialPort } = require('serialport');
-const Readline = require('@serialport/parser-readline');
 const usb = require('./src/usb/usb');
 
 let mainWindow;

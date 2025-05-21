@@ -1,6 +1,6 @@
 // Módulo centralizado para manejo de USB en Node.js/Electron
 const { SerialPort } = require('serialport');
-const Readline = require('@serialport/parser-readline');
+const { ReadlineParser } = require('@serialport/parser-readline');
 const { parseLibreString } = require('../libre/parser');
 const { parseDinamometroHexString } = require('../dinamometro/parser');
 const { parseBalanceHexString } = require('../balance/parser');
@@ -10,7 +10,7 @@ const { v4: uuidv4 } = require('uuid');
 let usbPort = null;
 let usbParser = null;
 let tipoDispositivo = 'Valkyria Free Charge 5'; // Valor por defecto
-let idMachine = 1; // Iniciar en 1, como en los archivos viejos
+let idMachine = 1; 
 let contador = 0;
 let onDataCallback = null;
 
@@ -37,7 +37,7 @@ function abrirPuertoUSB(path, baudRate = 115200) {
       if (err) return reject(err);
       // Selección dinámica de parser según tipo de dispositivo
       if (tipoDispositivo === 'Valkyria Free Charge 5') {
-        usbParser = usbPort.pipe(new Readline({ delimiter: 'R' }));
+        usbParser = usbPort.pipe(new ReadlineParser({ delimiter: 'R' }));
         usbParser.on('data', (line) => {
           const data = line.trim() + 'R';
           if (onDataCallback) onDataCallback(data, parseLibreString(data));
