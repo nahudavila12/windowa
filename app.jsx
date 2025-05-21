@@ -373,12 +373,12 @@ export default function App() {
                 {test.tipo === 'Valkyria Platform' ? (
                   <>
                     <br/>
-                    <em>Canal 1:</em> {test.valores.map((v, i) => v.fuerza1?.toFixed(2)).join(', ')}<br/>
-                    <em>Canal 2:</em> {test.valores.map((v, i) => v.fuerza2?.toFixed(2)).join(', ')}<br/>
+                    <em>Canal 1:</em> {test.valores.map((v, i) => v.fuerza1 !== undefined ? `${v.fuerza1?.toFixed(2)} (t: ${v.timestamp})` : '').join(', ')}<br/>
+                    <em>Canal 2:</em> {test.valores.map((v, i) => v.fuerza2 !== undefined ? `${v.fuerza2?.toFixed(2)} (t: ${v.timestamp})` : '').join(', ')}<br/>
                   </>
                 ) : test.tipo === 'Valkyria Free Charge 5' ? (
                   <>
-                    <em>Distancias:</em> {test.valores.map((v, i) => v?.valor !== undefined ? v.valor.toFixed(2) : v).join(', ')}<br/>
+                    <em>Distancias:</em> {test.valores.map((v, i) => v?.valor !== undefined ? `${v.valor.toFixed(2)} (t: ${v.timestamp})` : v).join(', ')}<br/>
                   </>
                 ) : test.tipo === 'Valkyria Dynamometer' ? (
                   <>
@@ -386,7 +386,7 @@ export default function App() {
                   </>
                 ) : (
                   <>
-                    {test.valores.join(', ')}<br/>
+                    {test.valores.map((v, i) => typeof v === 'object' ? JSON.stringify(v) : v).join(', ')}<br/>
                   </>
                 )}
                 <em>Nombre/Nota:</em> {test.nombre || '(sin nombre)'}
@@ -435,11 +435,21 @@ export default function App() {
                     <div style={codeBlockStyles}>{log.data}</div>
                     {log.valoresParseados && log.valoresParseados.length > 0 && (
                       <div style={{marginTop: 4, color: '#007bff'}}>
-                        <strong>Parseado:</strong> {Array.isArray(log.valoresParseados) && log.valoresParseados[0] && log.valoresParseados[0].fuerza1 !== undefined
-                          ? log.valoresParseados.map((v, i) => `(${v.fuerza1?.toFixed(2)}, ${v.fuerza2?.toFixed(2)})`).join(', ')
-                          : Array.isArray(log.valoresParseados) && typeof log.valoresParseados[0] === 'number'
-                            ? log.valoresParseados.map((v, i) => v?.toFixed(2)).join(', ')
-                            : log.valoresParseados.join(', ')}
+                        <strong>Parseado:</strong> {
+                          Array.isArray(log.valoresParseados) && log.valoresParseados[0] && typeof log.valoresParseados[0] === 'object'
+                            ? log.valoresParseados.map((v, i) => {
+                                if (v.fuerza1 !== undefined && v.fuerza2 !== undefined) {
+                                  return `(${v.fuerza1?.toFixed(2)}, ${v.fuerza2?.toFixed(2)}) t:${v.timestamp}`;
+                                } else if (v.valor !== undefined) {
+                                  return `${v.valor?.toFixed(2)} t:${v.timestamp}`;
+                                } else {
+                                  return JSON.stringify(v);
+                                }
+                              }).join(', ')
+                            : Array.isArray(log.valoresParseados) && typeof log.valoresParseados[0] === 'number'
+                              ? log.valoresParseados.map((v, i) => v?.toFixed(2)).join(', ')
+                              : log.valoresParseados.join(', ')
+                        }
                       </div>
                     )}
                   </li>
