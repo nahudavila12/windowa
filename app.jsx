@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { parseDinamometroData, parseDinamometroHexString } from './src/dinamometro/parser.js';
 import { parseBalanceHexString } from './src/balance/parser.js';
-import { parseLibreHexString } from './src/libre/parser.js';
+import { parseLibreString } from './src/libre/parser.js';
+import { parse1kHzHexString } from './src/balance/parser_1khz.js';
 
 // Estilos para el modal y su contenido
 const modalStyles = {
@@ -70,12 +71,18 @@ const parseadores = {
     if (typeof data === 'string') return parseDinamometroHexString(data);
     return [];
   },
-  'Valkyria Platform': data => {
+  'Valkyria Platform ': data => {
     if (typeof data === 'string') return parseBalanceHexString(data);
     return [];
   },
+  'Valkyria Platform 1khz': data => {
+    if (typeof data === 'string') return parse1kHzHexString(data);
+    return [];
+  },
   'Valkyria Free Charge 5': data => {
-    if (typeof data === 'string') return parseLibreHexString(data);
+    if (typeof data === 'string') {
+      return parseLibreString(data).map(obj => obj.valor);
+    }
     return [];
   }
 };
@@ -95,6 +102,11 @@ export default function App() {
   const [nombreTest, setNombreTest] = useState('');
   const [showNombreModal, setShowNombreModal] = useState(false);
   const [tipoDispositivo, setTipoDispositivo] = useState('Valkyria Dynamometer'); // 'Valkyria Dynamometer', 'Valkyria Platform' o 'Valkyria Free Charge 5'
+  const [modoConexion, setModoConexion] = useState('bluetooth'); // 'bluetooth' o 'usb'
+  const [puertosUSB, setPuertosUSB] = useState([]);
+  const [puertoUSBSeleccionado, setPuertoUSBSeleccionado] = useState('');
+  const [usbConectado, setUSBConectado] = useState(false);
+  const [idMachine, setIdMachine] = useState('');
 
   useEffect(() => {
     // Suscribirse a eventos de electronAPI
@@ -140,14 +152,30 @@ export default function App() {
       ]);
     });
 
-    return () => {
-      removeDeviceFound();
-      removeDeviceConnected();
-      removeDeviceDisconnected();
-      removeHeartRate();
-      removeRawData();
-    };
-  }, [connectedDevice, isTestRunning, tipoDispositivo]);
+    if (modoConexion === 'usb') {
+      window.electronAPI.listarPuertosUSB().then(setPuertosUSB);
+      const removeUSB = window.electronAPI.onUSBDatosCrudos(({ raw, parsed, timestamp }) => {
+        if (isTestRunning && parsed && parsed.length > 0) {
+          setCurrentTest(prev => [...prev, ...parsed]);
+        }
+        setRawDataLogs(prev => [
+          { timestamp, characteristicId: 'USB', data: raw, valoresParseados: parsed },
+          ...prev.slice(0, 199)
+        ]);
+      });
+      return () => {
+        removeDeviceFound();
+        removeDeviceConnected();
+        removeDeviceDisconnected();
+        removeHeartRate();
+        removeRawData();
+        removeUSB();
+      };
+    }
+
+    // Obtener el idMachine generado automáticamente desde el backend al iniciar
+    window.electronAPI.getIdMachine && window.electronAPI.getIdMachine().then(setIdMachine);
+  }, [connectedDevice, isTestRunning, tipoDispositivo, modoConexion]);
 
   const handleScan = async () => {
     setStatus('Iniciando escaneo...');
@@ -214,16 +242,50 @@ export default function App() {
     setStatus('Test finalizado');
   };
 
+  const handleConectarUSB = async () => {
+    if (!puertoUSBSeleccionado) return;
+    await window.electronAPI.abrirPuertoUSB(puertoUSBSeleccionado, 115200);
+    setUSBConectado(true);
+    setStatus(`Conectado por USB a ${puertoUSBSeleccionado}`);
+    setRawDataLogs([]);
+  };
+
+  const handleDesconectarUSB = async () => {
+    await window.electronAPI.cerrarPuertoUSB();
+    setUSBConectado(false);
+    setStatus('USB desconectado.');
+  };
+
+  const handleIdMachineChange = async (e) => {
+    const newId = e.target.value;
+    setIdMachine(newId);
+    await window.electronAPI.setIdMachine(newId);
+  };
+
+  const handleTipoDispositivoChange = async (e) => {
+    const tipo = e.target.value;
+    setTipoDispositivo(tipo);
+    await window.electronAPI.setUsbTipoDispositivo(tipo);
+  };
+
   return (
     <div style={{ fontFamily: 'sans-serif', margin: 20 }}>
       <h1>Monitor BLE y Dispositivos Ivolution</h1>
       <div style={{ marginBottom: 15, padding: 10, background: '#e9ecef', borderRadius: 4 }}>{status}</div>
       <div style={{ marginBottom: 10 }}>
         <label>Tipo de dispositivo: </label>
-        <select value={tipoDispositivo} onChange={e => setTipoDispositivo(e.target.value)}>
+        <select value={tipoDispositivo} onChange={handleTipoDispositivoChange}>
           <option value="Valkyria Dynamometer">Valkyria Dynamometer</option>
-          <option value="Valkyria Platform">Valkyria Platform</option>
+          <option value="Valkyria Platform 80Hz">Valkyria Platform 80Hz</option>
+          <option value="Valkyria Platform 1kHz">Valkyria Platform 1kHz</option>
           <option value="Valkyria Free Charge 5">Valkyria Free Charge 5</option>
+        </select>
+      </div>
+      <div style={{ marginBottom: 10 }}>
+        <label>Modo de conexión: </label>
+        <select value={modoConexion} onChange={e => setModoConexion(e.target.value)}>
+          <option value="bluetooth">Bluetooth</option>
+          <option value="usb">USB</option>
         </select>
       </div>
       {!connectedDevice && (
@@ -246,6 +308,24 @@ export default function App() {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+      {modoConexion === 'usb' && !usbConectado && (
+        <div style={{ marginBottom: 10 }}>
+          <label>Puerto USB: </label>
+          <select value={puertoUSBSeleccionado} onChange={e => setPuertoUSBSeleccionado(e.target.value)}>
+            <option value="">Selecciona un puerto</option>
+            {puertosUSB.map(p => (
+              <option key={p.path} value={p.path}>{p.path} {p.manufacturer ? `(${p.manufacturer})` : ''}</option>
+            ))}
+          </select>
+          <button onClick={handleConectarUSB} disabled={!puertoUSBSeleccionado}>Conectar USB</button>
+        </div>
+      )}
+      {modoConexion === 'usb' && usbConectado && (
+        <div style={{ marginBottom: 10 }}>
+          <span style={{ color: 'green', fontWeight: 'bold' }}>USB conectado: {puertoUSBSeleccionado}</span>
+          <button onClick={handleDesconectarUSB} style={{ marginLeft: 10 }}>Desconectar USB</button>
         </div>
       )}
       {connectedDevice && (
@@ -378,6 +458,10 @@ export default function App() {
           </div>
         </>
       )}
+      <div style={{ marginBottom: 10 }}>
+        <label>ID de máquina (auto): </label>
+        <input type="text" value={idMachine} disabled style={{ width: 260, marginLeft: 8 }} />
+      </div>
     </div>
   );
 }

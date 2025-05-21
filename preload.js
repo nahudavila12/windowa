@@ -36,6 +36,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   // Función para remover todos los listeners de un canal (útil al desmontar componentes en frameworks)
   removeAllListeners: (channel) => ipcRenderer.removeAllListeners(channel),
+  listarPuertosUSB: () => ipcRenderer.invoke('listar-puertos-usb'),
+  abrirPuertoUSB: (path, baudRate) => ipcRenderer.invoke('abrir-puerto-usb', path, baudRate),
+  cerrarPuertoUSB: () => ipcRenderer.invoke('cerrar-puerto-usb'),
+  setUsbTipoDispositivo: (tipo) => ipcRenderer.invoke('set-usb-tipo-dispositivo', tipo),
+  onUSBDatosCrudos: (callback) => {
+    ipcRenderer.on('usb-datos-crudos', (event, data) => callback(data));
+    return () => ipcRenderer.removeAllListeners('usb-datos-crudos');
+  },
+  setIdMachine: (newId) => ipcRenderer.invoke('set-id-machine', newId),
+  getIdMachine: () => ipcRenderer.invoke('get-id-machine'),
 });
 
 console.log('Preload script cargado y electronAPI expuesta.'); 
