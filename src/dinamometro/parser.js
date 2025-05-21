@@ -26,16 +26,25 @@ export function parseDinamometroData(datosHex) {
       buffer += ascii;
     }
   }
-  // Si queda algo en el buffer al final
-  if (buffer.length > 0) {
-    const num = parseFloat(buffer);
-    if (!isNaN(num)) resultados.push({ valor: num, timestamp: Date.now() });
-  }
   return resultados;
 }
 
-// Si recibes un string hexadecimal concatenado, puedes usar esto:
+// Recibe un string hexadecimal largo
 export function parseDinamometroHexString(hexString) {
+  let resultados = [];
+  let buffer = '';
   const ascii = hexToAscii(hexString);
-  return ascii.split('\r\n').filter(v => v.length > 0).map(num => ({ valor: Number(num), timestamp: Date.now() }));
+  for (let i = 0; i < ascii.length; i++) {
+    const c = ascii[i];
+    if (c === '\r' || c === '\n') {
+      if (buffer.length > 0) {
+        const num = parseFloat(buffer);
+        if (!isNaN(num)) resultados.push({ valor: num, timestamp: Date.now() });
+        buffer = '';
+      }
+    } else {
+      buffer += c;
+    }
+  }
+  return resultados;
 } 

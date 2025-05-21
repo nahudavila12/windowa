@@ -48,11 +48,21 @@ const codeBlockStyles = {
 
 function exportTestsToCSV(tests) {
   if (!tests.length) return;
-  const header = 'Test,Número,Valor,Nombre/Nota\n';
+  const header = 'Test,Número,Fuerza1,Fuerza2,Valor,Timestamp,Nombre/Nota\n';
   let rows = '';
   tests.forEach((test, idx) => {
     test.valores.forEach((valor, i) => {
-      rows += `${idx + 1},${i + 1},${valor},"${test.nombre || ''}"\n`;
+      if (valor && typeof valor === 'object') {
+        // Si es dinamómetro o plataforma
+        const fuerza1 = valor.fuerza1 !== undefined ? valor.fuerza1 : '';
+        const fuerza2 = valor.fuerza2 !== undefined ? valor.fuerza2 : '';
+        const v = valor.valor !== undefined ? valor.valor : '';
+        const timestamp = valor.timestamp !== undefined ? valor.timestamp : '';
+        rows += `${idx + 1},${i + 1},${fuerza1},${fuerza2},${v},${timestamp},"${test.nombre || ''}"\n`;
+      } else {
+        // Si es un valor simple
+        rows += `${idx + 1},${i + 1},,,,${valor},"${test.nombre || ''}"\n`;
+      }
     });
   });
   const csvContent = header + rows;
@@ -368,11 +378,11 @@ export default function App() {
                   </>
                 ) : test.tipo === 'Valkyria Free Charge 5' ? (
                   <>
-                    <em>Distancias:</em> {test.valores.map((v, i) => v?.toFixed(2)).join(', ')}<br/>
+                    <em>Distancias:</em> {test.valores.map((v, i) => v?.valor !== undefined ? v.valor.toFixed(2) : v).join(', ')}<br/>
                   </>
                 ) : test.tipo === 'Valkyria Dynamometer' ? (
                   <>
-                    <em>Fuerzas:</em> {test.valores.map((v, i) => v?.toFixed ? v.toFixed(2) : v).join(', ')}<br/>
+                    <em>Fuerzas:</em> {test.valores.map((v, i) => v?.valor !== undefined ? `${v.valor.toFixed(2)} (t: ${v.timestamp})` : v).join(', ')}<br/>
                   </>
                 ) : (
                   <>

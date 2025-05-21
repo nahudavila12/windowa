@@ -19,7 +19,7 @@ export function parseLibreString(dataString) {
     });
   }
   return resultados;
-  }
+}
 
 // Ejemplo de uso del parser:
 // (Descomenta para probar en tu entorno Node.js)
