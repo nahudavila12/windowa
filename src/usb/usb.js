@@ -10,7 +10,7 @@ const { v4: uuidv4 } = require('uuid');
 let usbPort = null;
 let usbParser = null;
 let tipoDispositivo = 'Valkyria Free Charge 5'; // Valor por defecto
-let idMachine = uuidv4(); // Generar automáticamente un UUID al iniciar
+let idMachine = 1; // Iniciar en 1, como en los archivos viejos
 let contador = 0;
 let onDataCallback = null;
 
@@ -19,7 +19,7 @@ function setTipoDispositivo(tipo) {
 }
 
 function setIdMachine(id) {
-  idMachine = String(id);
+  idMachine = Number(id);
 }
 
 function setOnDataCallback(cb) {
