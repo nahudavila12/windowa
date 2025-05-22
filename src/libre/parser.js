@@ -4,6 +4,7 @@
 /**
  * Parsea una cadena recibida del encoder Libre (puede venir en hexadecimal ASCII o texto plano).
  * Devuelve un array de objetos { valor, timestamp }.
+ * Filtra outliers: descarta valores con |valor| > 1000.
  * @param {string} dataString
  * @returns {{valor: number, timestamp: number}[]} Array de muestras con timestamp
  */
@@ -30,6 +31,10 @@ export function parseLibreString(dataString) {
   while ((match = regex.exec(ascii)) !== null) {
     const valor = parseFloat(match[1]);
     if (!isNaN(valor)) {
+      if (Math.abs(valor) > 2000) {
+        console.log('[parseLibreString] OUTLIER descartado:', valor);
+        continue;
+      }
       const obj = { valor, timestamp: Date.now() };
       resultados.push(obj);
       console.log('[parseLibreString] objeto parseado:', obj);

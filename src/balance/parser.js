@@ -12,6 +12,7 @@
  * @returns {{fuerza1: number, fuerza2: number, timestamp: number}[]} Array de pares de fuerzas con timestamp
  */
 export function parseBalanceHexString(hexString) {
+  const umbralOutlier = 200; // Valor fijo, similar a cómo está en el encoder libre
   const pares = [];
   if (!hexString || typeof hexString !== 'string') {
     console.log('[parseBalanceHexString] hexString inválido:', hexString);
@@ -35,6 +36,11 @@ export function parseBalanceHexString(hexString) {
         const valor2 = (parseInt(l2, 16) << 8) | parseInt(h2, 16);
         const fuerza1 = valor1 / 10.0;
         const fuerza2 = valor2 / 10.0;
+        // FILTRO DE OUTLIERS
+        if (Math.abs(fuerza1) > umbralOutlier || Math.abs(fuerza2) > umbralOutlier) {
+          console.log('[parseBalanceHexString] OUTLIER descartado:', { fuerza1, fuerza2, bloque });
+          continue;
+        }
         const obj = { fuerza1, fuerza2, timestamp: Date.now() };
         pares.push(obj);
         console.log('[parseBalanceHexString] bloque válido:', bloque, '->', obj);
