@@ -58,7 +58,7 @@ function exportTestsToCSV(tests) {
           rows += `${idx + 1},${i + 1},${valor.valor !== undefined ? valor.valor : ''},${valor.timestamp !== undefined ? valor.timestamp : ''},"${test.nombre || ''}"\n`;
         }
       });
-    } else if (test.tipo === 'Valkyria Platform ' || test.tipo === 'Valkyria Platform 1kHz') {
+    } else if (test.tipo === 'Valkyria Platform') {
       header = 'Test,Número,Fuerza1,Fuerza2,Timestamp,Nombre/Nota\n';
       test.valores.forEach((valor, i) => {
         if (valor && typeof valor === 'object') {
@@ -91,14 +91,9 @@ const parseadores = {
     if (typeof data === 'string') return parseDinamometroHexString(data);
     return [];
   },
-  'Valkyria Platform ': data => {
+  'Valkyria Platform': data => {
     console.log('[PARSEADOR] Tipo: Platform , Data:', data);
     if (typeof data === 'string') return parseBalanceHexString(data);
-    return [];
-  },
-  'Valkyria Platform 1kHz': data => {
-    console.log('[PARSEADOR] Tipo: Platform 1kHz, Data:', data);
-    if (typeof data === 'string') return parse1kHzHexString(data);
     return [];
   },
   'Valkyria Free Charge 5': data => {
@@ -107,6 +102,44 @@ const parseadores = {
     return [];
   }
 };
+
+// FUNCIONES PARA FILTRAR VALORES PLANOS AL FINAL
+function filtrarPlanosAlFinal(arr, key = 'valor', N = 10) {
+  if (!arr.length) return arr;
+  let count = 1;
+  let i = arr.length - 1;
+  while (i > 0 && count < N + 1) {
+    if (arr[i][key] === arr[i - 1][key]) {
+      count++;
+      i--;
+    } else {
+      break;
+    }
+  }
+  if (count > N) {
+    return arr.slice(0, arr.length - count + N);
+  }
+  return arr;
+}
+
+function filtrarPlanosAlFinalPlataforma(arr, N = 10) {
+  if (!arr.length) return arr;
+  let count = 1;
+  let i = arr.length - 1;
+  while (
+    i > 0 &&
+    count < N + 1 &&
+    arr[i].fuerza1 === arr[i - 1].fuerza1 &&
+    arr[i].fuerza2 === arr[i - 1].fuerza2
+  ) {
+    count++;
+    i--;
+  }
+  if (count > N) {
+    return arr.slice(0, arr.length - count + N);
+  }
+  return arr;
+}
 
 export default function App() {
   const [status, setStatus] = useState('Esperando acciones...');
@@ -128,6 +161,7 @@ export default function App() {
   const [puertoUSBSeleccionado, setPuertoUSBSeleccionado] = useState('');
   const [usbConectado, setUSBConectado] = useState(false);
   const [idMachine, setIdMachine] = useState('');
+  const [usbRawLogs, setUsbRawLogs] = useState([]);
 
   useEffect(() => {
     // Suscribirse a eventos de electronAPI
@@ -187,6 +221,10 @@ export default function App() {
         }
         setRawDataLogs(prev => [
           { timestamp, characteristicId: 'USB', data: raw, valoresParseados: parsed },
+          ...prev.slice(0, 199)
+        ]);
+        setUsbRawLogs(prev => [
+          { timestamp, data: raw },
           ...prev.slice(0, 199)
         ]);
       });
@@ -260,8 +298,14 @@ export default function App() {
   };
 
   const handleGuardarTest = () => {
-    if (currentTest.length > 0) {
-      setTests(prev => [...prev, { valores: currentTest, nombre: nombreTest, tipo: tipoDispositivo }]);
+    let valoresFiltrados = currentTest;
+    if (tipoDispositivo === 'Valkyria Dynamometer' || tipoDispositivo === 'Valkyria Free Charge 5') {
+      valoresFiltrados = filtrarPlanosAlFinal(currentTest, 'valor', 10);
+    } else if (tipoDispositivo === 'Valkyria Platform') {
+      valoresFiltrados = filtrarPlanosAlFinalPlataforma(currentTest, 10);
+    }
+    if (valoresFiltrados.length > 0) {
+      setTests(prev => [...prev, { valores: valoresFiltrados, nombre: nombreTest, tipo: tipoDispositivo }]);
     }
     setCurrentTest([]);
     setNombreTest('');
@@ -303,8 +347,7 @@ export default function App() {
         <label>Tipo de dispositivo: </label>
         <select value={tipoDispositivo} onChange={handleTipoDispositivoChange}>
           <option value="Valkyria Dynamometer">Valkyria Dynamometer</option>
-          <option value="Valkyria Platform ">Valkyria Platform </option>
-          <option value="Valkyria Platform 1kHz">Valkyria Platform 1kHz</option>
+          <option value="Valkyria Platform">Valkyria Platform</option>
           <option value="Valkyria Free Charge 5">Valkyria Free Charge 5</option>
         </select>
       </div>
@@ -387,7 +430,7 @@ export default function App() {
             {tests.map((test, idx) => (
               <div key={idx} style={{marginBottom: 10}}>
                 <strong>Test #{idx + 1} ({test.tipo || 'desconocido'}):</strong>
-                {test.tipo === 'Valkyria Platform ' || test.tipo === 'Valkyria Platform 1kHz' ? (
+                {test.tipo === 'Valkyria Platform' ? (
                   <>
                     <br/>
                     <em>Canal 1:</em> {test.valores.map((v, i) => v.fuerza1 !== undefined ? `${v.fuerza1?.toFixed(2)} (t: ${v.timestamp})` : '').join(', ')}<br/>
@@ -408,7 +451,7 @@ export default function App() {
                 )}
                 <em>Nombre/Nota:</em> {test.nombre || '(sin nombre)'}
                 <ResponsiveContainer width="100%" height={120}>
-                  {test.tipo === 'Valkyria Platform ' || test.tipo === 'Valkyria Platform 1kHz' ? (
+                  {test.tipo === 'Valkyria Platform' ? (
                     <LineChart data={test.valores.map((v, i) => ({ muestra: i + 1, fuerza1: v.fuerza1, fuerza2: v.fuerza2 }))}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="muestra" label={{ value: 'Muestra', position: 'insideBottomRight', offset: 0 }} />
@@ -503,6 +546,19 @@ export default function App() {
         <label>ID de máquina (auto): </label>
         <input type="text" value={idMachine} disabled style={{ width: 260, marginLeft: 8 }} />
       </div>
+      {modoConexion === 'usb' && usbRawLogs.length > 0 && (
+        <div style={{ margin: '20px 0', background: '#f8f9fa', borderRadius: 6, padding: 12 }}>
+          <h2 style={{ color: '#007bff' }}>Log de Datos Crudos Recibidos por USB</h2>
+          <ul style={{ listStyleType: 'none', padding: 0 }}>
+            {usbRawLogs.map((log, idx) => (
+              <li key={idx} style={{ borderBottom: '1px solid #eee', padding: '6px 0', fontSize: '0.95em' }}>
+                <strong>[{new Date(log.timestamp).toLocaleTimeString()}]</strong>:
+                <div style={{ background: '#e9ecef', borderRadius: 4, padding: 4, fontFamily: 'monospace', marginTop: 2 }}>{log.data}</div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

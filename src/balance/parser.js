@@ -7,6 +7,7 @@
  * Donde HH1,LL1 = fuerza1, HH2,LL2 = fuerza2 (little endian), fuerza = valor / 10.0
  * Este parser es exclusivo para la versión 80Hz (plataforma normal).
  * Ignora bloques corruptos o incompletos.
+ * Ahora es tolerante a errores de transmisión: acepta bloques que empiecen en '4c3a' o '3a02'.
  * @param {string} hexString
  * @returns {{fuerza1: number, fuerza2: number, timestamp: number}[]} Array de pares de fuerzas con timestamp
  */
@@ -18,11 +19,14 @@ export function parseBalanceHexString(hexString) {
   }
   const cleanHex = hexString.replace(/\s+/g, '').toLowerCase();
   console.log('[parseBalanceHexString] cleanHex:', cleanHex);
-  for (let i = 0; i <= cleanHex.length - 12; i += 12) {
+  for (let i = 0; i <= cleanHex.length - 12; i++) {
     const bloque = cleanHex.substr(i, 12);
-    console.log('[parseBalanceHexString] bloque:', bloque);
-    if (bloque.length === 12 && bloque.startsWith('4c3a')) {
+    if ((bloque.startsWith('4c3a') || bloque.startsWith('3a02')) && bloque.length === 12) {
       try {
+        // Si empieza en '3a02', lo tratamos como si fuera '4c3a' pero avisamos en el log
+        if (bloque.startsWith('3a02')) {
+          console.log('[parseBalanceHexString] bloque desfasado (3a02):', bloque);
+        }
         const h1 = bloque.substr(4, 2);
         const l1 = bloque.substr(6, 2);
         const h2 = bloque.substr(8, 2);
@@ -33,14 +37,13 @@ export function parseBalanceHexString(hexString) {
         const fuerza2 = valor2 / 10.0;
         const obj = { fuerza1, fuerza2, timestamp: Date.now() };
         pares.push(obj);
-        console.log('[parseBalanceHexString] objeto parseado:', obj);
+        console.log('[parseBalanceHexString] bloque válido:', bloque, '->', obj);
+        i += 11; // Salta al siguiente bloque
       } catch (e) {
         console.log('[parseBalanceHexString] Error al parsear bloque:', bloque, e);
-        // Ignorar bloque corrupto
       }
-    } else {
-      console.log('[parseBalanceHexString] bloque inválido:', bloque);
     }
+    // Si no es un bloque válido, sigue buscando (i++ en vez de i+=12)
   }
   console.log('[parseBalanceHexString] resultado final:', pares);
   return pares;
