@@ -48,51 +48,62 @@ const codeBlockStyles = {
 
 function exportTestsToCSV(tests) {
   if (!tests.length) return;
-  const header = 'Test,Número,Fuerza1,Fuerza2,Valor,Timestamp,Nombre/Nota\n';
+  let header = '';
   let rows = '';
   tests.forEach((test, idx) => {
-    test.valores.forEach((valor, i) => {
-      if (valor && typeof valor === 'object') {
-        // Si es dinamómetro o plataforma
-        const fuerza1 = valor.fuerza1 !== undefined ? valor.fuerza1 : '';
-        const fuerza2 = valor.fuerza2 !== undefined ? valor.fuerza2 : '';
-        const v = valor.valor !== undefined ? valor.valor : '';
-        const timestamp = valor.timestamp !== undefined ? valor.timestamp : '';
-        rows += `${idx + 1},${i + 1},${fuerza1},${fuerza2},${v},${timestamp},"${test.nombre || ''}"\n`;
-      } else {
-        // Si es un valor simple
-        rows += `${idx + 1},${i + 1},,,,${valor},"${test.nombre || ''}"\n`;
-      }
-    });
+    if (test.tipo === 'Valkyria Dynamometer') {
+      header = 'Test,Número,Fuerza,Timestamp,Nombre/Nota\n';
+      test.valores.forEach((valor, i) => {
+        if (valor && typeof valor === 'object') {
+          rows += `${idx + 1},${i + 1},${valor.valor !== undefined ? valor.valor : ''},${valor.timestamp !== undefined ? valor.timestamp : ''},"${test.nombre || ''}"\n`;
+        }
+      });
+    } else if (test.tipo === 'Valkyria Platform ' || test.tipo === 'Valkyria Platform 1kHz') {
+      header = 'Test,Número,Fuerza1,Fuerza2,Timestamp,Nombre/Nota\n';
+      test.valores.forEach((valor, i) => {
+        if (valor && typeof valor === 'object') {
+          rows += `${idx + 1},${i + 1},${valor.fuerza1 !== undefined ? valor.fuerza1 : ''},${valor.fuerza2 !== undefined ? valor.fuerza2 : ''},${valor.timestamp !== undefined ? valor.timestamp : ''},"${test.nombre || ''}"\n`;
+        }
+      });
+    } else if (test.tipo === 'Valkyria Free Charge 5') {
+      header = 'Test,Número,Distancia,Timestamp,Nombre/Nota\n';
+      test.valores.forEach((valor, i) => {
+        if (valor && typeof valor === 'object') {
+          rows += `${idx + 1},${i + 1},${valor.valor !== undefined ? valor.valor : ''},${valor.timestamp !== undefined ? valor.timestamp : ''},"${test.nombre || ''}"\n`;
+        }
+      });
+    }
   });
   const csvContent = header + rows;
   const blob = new Blob([csvContent], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'tests_dinamometro.csv';
+  a.download = 'tests_ivolution.csv';
   a.click();
   URL.revokeObjectURL(url);
 }
 
 const parseadores = {
   'Valkyria Dynamometer': data => {
+    console.log('[PARSEADOR] Tipo: Dynamometer, Data:', data);
     if (Array.isArray(data)) return parseDinamometroData(data);
     if (typeof data === 'string') return parseDinamometroHexString(data);
     return [];
   },
   'Valkyria Platform ': data => {
+    console.log('[PARSEADOR] Tipo: Platform , Data:', data);
     if (typeof data === 'string') return parseBalanceHexString(data);
     return [];
   },
-  'Valkyria Platform 1khz': data => {
+  'Valkyria Platform 1kHz': data => {
+    console.log('[PARSEADOR] Tipo: Platform 1kHz, Data:', data);
     if (typeof data === 'string') return parse1kHzHexString(data);
     return [];
   },
   'Valkyria Free Charge 5': data => {
-    if (typeof data === 'string') {
-      return parseLibreString(data).map(obj => obj.valor);
-    }
+    console.log('[PARSEADOR] Tipo: Free Charge 5, Data:', data);
+    if (typeof data === 'string') return parseLibreString(data);
     return [];
   }
 };
@@ -153,7 +164,10 @@ export default function App() {
     const removeRawData = window.electronAPI.onRawDataUpdate(logEntry => {
       const parser = parseadores[tipoDispositivo] || (() => []);
       const valoresParseados = parser(logEntry.data);
+      console.log('[FRONT] Datos crudos:', logEntry.data);
+      console.log('[FRONT] Valores parseados:', valoresParseados);
       if (isTestRunning && valoresParseados.length > 0) {
+        console.log('[FRONT] Agregando a currentTest:', valoresParseados);
         setCurrentTest(prev => [...prev, ...valoresParseados]);
       }
       setRawDataLogs(prev => [
@@ -165,7 +179,10 @@ export default function App() {
     if (modoConexion === 'usb') {
       window.electronAPI.listarPuertosUSB().then(setPuertosUSB);
       const removeUSB = window.electronAPI.onUSBDatosCrudos(({ raw, parsed, timestamp }) => {
+        console.log('[FRONT][USB] Datos crudos:', raw);
+        console.log('[FRONT][USB] Valores parseados:', parsed);
         if (isTestRunning && parsed && parsed.length > 0) {
+          console.log('[FRONT][USB] Agregando a currentTest:', parsed);
           setCurrentTest(prev => [...prev, ...parsed]);
         }
         setRawDataLogs(prev => [
@@ -286,7 +303,7 @@ export default function App() {
         <label>Tipo de dispositivo: </label>
         <select value={tipoDispositivo} onChange={handleTipoDispositivoChange}>
           <option value="Valkyria Dynamometer">Valkyria Dynamometer</option>
-          <option value="Valkyria Platform 80Hz">Valkyria Platform 80Hz</option>
+          <option value="Valkyria Platform ">Valkyria Platform </option>
           <option value="Valkyria Platform 1kHz">Valkyria Platform 1kHz</option>
           <option value="Valkyria Free Charge 5">Valkyria Free Charge 5</option>
         </select>
@@ -369,8 +386,8 @@ export default function App() {
             <button onClick={() => exportTestsToCSV(tests)} disabled={!tests.length}>Exportar tests a CSV</button>
             {tests.map((test, idx) => (
               <div key={idx} style={{marginBottom: 10}}>
-                <strong>Test #{idx + 1} ({test.tipo || 'dinamometro'}):</strong>
-                {test.tipo === 'Valkyria Platform' ? (
+                <strong>Test #{idx + 1} ({test.tipo || 'desconocido'}):</strong>
+                {test.tipo === 'Valkyria Platform ' || test.tipo === 'Valkyria Platform 1kHz' ? (
                   <>
                     <br/>
                     <em>Canal 1:</em> {test.valores.map((v, i) => v.fuerza1 !== undefined ? `${v.fuerza1?.toFixed(2)} (t: ${v.timestamp})` : '').join(', ')}<br/>
@@ -391,31 +408,35 @@ export default function App() {
                 )}
                 <em>Nombre/Nota:</em> {test.nombre || '(sin nombre)'}
                 <ResponsiveContainer width="100%" height={120}>
-                  <LineChart data={
-                    test.tipo === 'Valkyria Platform'
-                      ? test.valores.map((v, i) => ({ muestra: i + 1, fuerza1: v.fuerza1, fuerza2: v.fuerza2 }))
-                      : test.tipo === 'Valkyria Free Charge 5'
-                        ? test.valores.map((v, i) => ({ muestra: i + 1, distancia: v }))
-                        : test.tipo === 'Valkyria Dynamometer'
-                          ? test.valores.map((v, i) => ({ muestra: i + 1, valor: v }))
-                          : test.valores.map((v, i) => ({ muestra: i + 1, valor: v }))
-                  }>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="muestra" label={{ value: 'Muestra', position: 'insideBottomRight', offset: 0 }} />
-                    <YAxis label={{ value: test.tipo === 'Valkyria Free Charge 5' ? 'Distancia' : (test.tipo === 'Valkyria Platform' ? 'Fuerza' : 'Valor'), angle: -90, position: 'insideLeft' }} />
-                    <Tooltip />
-                    <Legend />
-                    {test.tipo === 'Valkyria Platform' ? (
-                      <>
-                        <Line type="monotone" dataKey="fuerza1" stroke="#82ca9d" name="Canal 1" />
-                        <Line type="monotone" dataKey="fuerza2" stroke="#8884d8" name="Canal 2" />
-                      </>
-                    ) : test.tipo === 'Valkyria Free Charge 5' ? (
+                  {test.tipo === 'Valkyria Platform ' || test.tipo === 'Valkyria Platform 1kHz' ? (
+                    <LineChart data={test.valores.map((v, i) => ({ muestra: i + 1, fuerza1: v.fuerza1, fuerza2: v.fuerza2 }))}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="muestra" label={{ value: 'Muestra', position: 'insideBottomRight', offset: 0 }} />
+                      <YAxis label={{ value: 'Fuerza', angle: -90, position: 'insideLeft' }} />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="fuerza1" stroke="#82ca9d" name="Canal 1" />
+                      <Line type="monotone" dataKey="fuerza2" stroke="#8884d8" name="Canal 2" />
+                    </LineChart>
+                  ) : test.tipo === 'Valkyria Free Charge 5' ? (
+                    <LineChart data={test.valores.map((v, i) => ({ muestra: i + 1, distancia: v.valor }))}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="muestra" label={{ value: 'Muestra', position: 'insideBottomRight', offset: 0 }} />
+                      <YAxis label={{ value: 'Distancia', angle: -90, position: 'insideLeft' }} />
+                      <Tooltip />
+                      <Legend />
                       <Line type="monotone" dataKey="distancia" stroke="#ff7300" name="Distancia" />
-                    ) : (
-                      <Line type="monotone" dataKey="valor" stroke="#82ca9d" />
-                    )}
-                  </LineChart>
+                    </LineChart>
+                  ) : test.tipo === 'Valkyria Dynamometer' ? (
+                    <LineChart data={test.valores.map((v, i) => ({ muestra: i + 1, valor: v.valor }))}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="muestra" label={{ value: 'Muestra', position: 'insideBottomRight', offset: 0 }} />
+                      <YAxis label={{ value: 'Fuerza', angle: -90, position: 'insideLeft' }} />
+                      <Tooltip />
+                      <Legend />
+                      <Line type="monotone" dataKey="valor" stroke="#82ca9d" name="Fuerza" />
+                    </LineChart>
+                  ) : null}
                 </ResponsiveContainer>
               </div>
             ))}

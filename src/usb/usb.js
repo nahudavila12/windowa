@@ -40,6 +40,7 @@ function abrirPuertoUSB(path, baudRate = 115200) {
         usbParser = usbPort.pipe(new ReadlineParser({ delimiter: 'R' }));
         usbParser.on('data', (line) => {
           const data = line.trim() + 'R';
+          console.log('[USB] Recibido (Free Charge 5):', data);
           if (onDataCallback) onDataCallback(data, parseLibreString(data));
           if (data === 'I') {
             usbPort.write(`X:${idMachine}\n`);
@@ -49,8 +50,12 @@ function abrirPuertoUSB(path, baudRate = 115200) {
         });
       } else if (tipoDispositivo === 'Valkyria Dynamometer') {
         usbPort.on('data', (data) => {
+          console.log('[USB] Recibido (Dynamometer) buffer:', data);
           const hexString = data.toString('hex');
-          if (onDataCallback) onDataCallback(hexString, parseDinamometroHexString(hexString));
+          console.log('[USB] Recibido (Dynamometer) hexString:', hexString);
+          const parsed = parseDinamometroHexString(hexString);
+          console.log('[USB] Parseado (Dynamometer):', parsed);
+          if (onDataCallback) onDataCallback(hexString, parsed);
           if (hexString === '49') { // 'I'
             usbPort.write(Buffer.from(`X:${idMachine}\n`));
           } else if (hexString === '52') { // 'R'
@@ -59,15 +64,17 @@ function abrirPuertoUSB(path, baudRate = 115200) {
         });
       } else if (tipoDispositivo === 'Valkyria Platform') {
         usbPort.on('data', (data) => {
+          console.log('[USB] Recibido (Platform) buffer:', data);
           const hexString = data.toString('hex');
+          console.log('[USB] Recibido (Platform) hexString:', hexString);
           // Detectar si es 1kHz o 80Hz por la frecuencia de llegada o el tamaño del paquete
-          // Aquí, si el string es muy largo y llegan muchos paquetes por segundo, asumimos 1kHz
-          // Si no, 80Hz
           let parsed = [];
           if (hexString.length > 120) {
             parsed = parse1kHzHexString(hexString);
+            console.log('[USB] Parseado (Platform 1kHz):', parsed);
           } else {
             parsed = parseBalanceHexString(hexString);
+            console.log('[USB] Parseado (Platform 80Hz):', parsed);
           }
           if (onDataCallback) onDataCallback(hexString, parsed);
           if (hexString === '49') { // 'I'
