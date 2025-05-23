@@ -52,7 +52,7 @@ export default function RawDataLog({ show, onClose, rawDataLogs }) {
             {rawDataLogs.map((log, idx) => (
               <li key={idx} style={listItemStyles}>
                 <strong>[{log.timestamp}]</strong> de {log.characteristicId}:
-                <div style={codeBlockStyles}>{log.data}</div>
+                <div style={codeBlockStyles}><strong>Crudo:</strong> {log.data}</div>
                 {log.valoresParseados && log.valoresParseados.length > 0 && (
                   <div style={{marginTop: 4, color: '#007bff'}}>
                     <strong>Parseado:</strong> {
