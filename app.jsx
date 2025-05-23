@@ -4,6 +4,10 @@ import { parseDinamometroData, parseDinamometroHexString } from './src/dinamomet
 import { parseBalanceHexString } from './src/balance/parser.js';
 import { parseLibreString } from './src/libre/parser.js';
 import { parse1kHzHexString } from './src/balance/parser_1khz.js';
+import DeviceSelector from './src/components/DeviceSelector.jsx';
+import RawDataLog from './src/components/RawDataLog.jsx';
+import TestList from './src/components/TestList.jsx';
+import USBLog from './src/components/USBLog.jsx';
 
 // Estilos para el modal y su contenido
 const modalStyles = {
@@ -358,46 +362,21 @@ export default function App() {
           <option value="usb">USB</option>
         </select>
       </div>
-      {!connectedDevice && (
-        isScanning ? (
-          <button onClick={handleStopScan}>Detener Escaneo</button>
-        ) : (
-          <button onClick={handleScan}>Escanear Dispositivos</button>
-        )
-      )}
-      {!connectedDevice && (
-        <div>
-          <h2>Dispositivos Encontrados:</h2>
-          <ul>
-            {devices.filter(device => (device.name || '').startsWith('Valkyria')).map(device => (
-              <li key={device.id} style={{ marginBottom: 8 }}>
-                {device.name || 'Desconocido'} (ID: {device.id})
-                <button style={{ marginLeft: 10 }} onClick={() => handleConnect(device.id)} disabled={!!connectedDevice}>
-                  Conectar
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {modoConexion === 'usb' && !usbConectado && (
-        <div style={{ marginBottom: 10 }}>
-          <label>Puerto USB: </label>
-          <select value={puertoUSBSeleccionado} onChange={e => setPuertoUSBSeleccionado(e.target.value)}>
-            <option value="">Selecciona un puerto</option>
-            {puertosUSB.map(p => (
-              <option key={p.path} value={p.path}>{p.path} {p.manufacturer ? `(${p.manufacturer})` : ''}</option>
-            ))}
-          </select>
-          <button onClick={handleConectarUSB} disabled={!puertoUSBSeleccionado}>Conectar USB</button>
-        </div>
-      )}
-      {modoConexion === 'usb' && usbConectado && (
-        <div style={{ marginBottom: 10 }}>
-          <span style={{ color: 'green', fontWeight: 'bold' }}>USB conectado: {puertoUSBSeleccionado}</span>
-          <button onClick={handleDesconectarUSB} style={{ marginLeft: 10 }}>Desconectar USB</button>
-        </div>
-      )}
+      <DeviceSelector
+        modoConexion={modoConexion}
+        isScanning={isScanning}
+        handleScan={handleScan}
+        handleStopScan={handleStopScan}
+        devices={devices}
+        handleConnect={handleConnect}
+        connectedDevice={connectedDevice}
+        puertosUSB={puertosUSB}
+        puertoUSBSeleccionado={puertoUSBSeleccionado}
+        setPuertoUSBSeleccionado={setPuertoUSBSeleccionado}
+        handleConectarUSB={handleConectarUSB}
+        usbConectado={usbConectado}
+        handleDesconectarUSB={handleDesconectarUSB}
+      />
       {connectedDevice && (
         <div>
           <h2>Información del Dispositivo Conectado:</h2>
@@ -424,106 +403,11 @@ export default function App() {
           <button onClick={() => setShowModal(true)}>Ver datos recibidos</button>
           <button onClick={handleStartTest} disabled={isTestRunning}>Iniciar test</button>
           <button onClick={handleEndTest} disabled={!isTestRunning}>Finalizar test</button>
-          <div>
-            <h3>Tests realizados: {tests.length}</h3>
-            <button onClick={() => exportTestsToCSV(tests)} disabled={!tests.length}>Exportar tests a CSV</button>
-            {tests.map((test, idx) => (
-              <div key={idx} style={{marginBottom: 10}}>
-                <strong>Test #{idx + 1} ({test.tipo || 'desconocido'}):</strong>
-                {test.tipo === 'Valkyria Platform' ? (
-                  <>
-                    <br/>
-                    <em>Canal 1:</em> {test.valores.map((v, i) => v.fuerza1 !== undefined ? `${v.fuerza1?.toFixed(2)} (t: ${v.timestamp})` : '').join(', ')}<br/>
-                    <em>Canal 2:</em> {test.valores.map((v, i) => v.fuerza2 !== undefined ? `${v.fuerza2?.toFixed(2)} (t: ${v.timestamp})` : '').join(', ')}<br/>
-                  </>
-                ) : test.tipo === 'Valkyria Free Charge 5' ? (
-                  <>
-                    <em>Distancias:</em> {test.valores.map((v, i) => v?.valor !== undefined ? `${v.valor.toFixed(2)} (t: ${v.timestamp})` : v).join(', ')}<br/>
-                  </>
-                ) : test.tipo === 'Valkyria Dynamometer' ? (
-                  <>
-                    <em>Fuerzas:</em> {test.valores.map((v, i) => v?.valor !== undefined ? `${v.valor.toFixed(2)} (t: ${v.timestamp})` : v).join(', ')}<br/>
-                  </>
-                ) : (
-                  <>
-                    {test.valores.map((v, i) => typeof v === 'object' ? JSON.stringify(v) : v).join(', ')}<br/>
-                  </>
-                )}
-                <em>Nombre/Nota:</em> {test.nombre || '(sin nombre)'}
-                <ResponsiveContainer width="100%" height={120}>
-                  {test.tipo === 'Valkyria Platform' ? (
-                    <LineChart data={test.valores.map((v, i) => ({ muestra: i + 1, fuerza1: v.fuerza1, fuerza2: v.fuerza2 }))}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="muestra" label={{ value: 'Muestra', position: 'insideBottomRight', offset: 0 }} />
-                      <YAxis label={{ value: 'Fuerza', angle: -90, position: 'insideLeft' }} />
-                      <Tooltip />
-                      <Legend />
-                      <Line type="monotone" dataKey="fuerza1" stroke="#82ca9d" name="Canal 1" />
-                      <Line type="monotone" dataKey="fuerza2" stroke="#8884d8" name="Canal 2" />
-                    </LineChart>
-                  ) : test.tipo === 'Valkyria Free Charge 5' ? (
-                    <LineChart data={test.valores.map((v, i) => ({ muestra: i + 1, distancia: v.valor }))}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="muestra" label={{ value: 'Muestra', position: 'insideBottomRight', offset: 0 }} />
-                      <YAxis label={{ value: 'Distancia', angle: -90, position: 'insideLeft' }} />
-                      <Tooltip />
-                      <Legend />
-                      <Line type="monotone" dataKey="distancia" stroke="#ff7300" name="Distancia" />
-                    </LineChart>
-                  ) : test.tipo === 'Valkyria Dynamometer' ? (
-                    <LineChart data={test.valores.map((v, i) => ({ muestra: i + 1, valor: v.valor }))}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="muestra" label={{ value: 'Muestra', position: 'insideBottomRight', offset: 0 }} />
-                      <YAxis label={{ value: 'Fuerza', angle: -90, position: 'insideLeft' }} />
-                      <Tooltip />
-                      <Legend />
-                      <Line type="monotone" dataKey="valor" stroke="#82ca9d" name="Fuerza" />
-                    </LineChart>
-                  ) : null}
-                </ResponsiveContainer>
-              </div>
-            ))}
-          </div>
+          <TestList tests={tests} exportTestsToCSV={exportTestsToCSV} />
         </div>
       )}
-      {showModal && (
-        <>
-          <div style={overlayStyles} onClick={() => setShowModal(false)} />
-          <div style={modalStyles}>
-            <h2>Log de Datos Crudos Recibidos</h2>
-            {rawDataLogs.length === 0 ? <p>No se han recibido datos crudos aún.</p> : (
-              <ul style={{ listStyleType: 'none', padding: 0}}>
-                {rawDataLogs.map((log, idx) => (
-                  <li key={idx} style={listItemStyles}>
-                    <strong>[{log.timestamp}]</strong> de {log.characteristicId}:
-                    <div style={codeBlockStyles}>{log.data}</div>
-                    {log.valoresParseados && log.valoresParseados.length > 0 && (
-                      <div style={{marginTop: 4, color: '#007bff'}}>
-                        <strong>Parseado:</strong> {
-                          Array.isArray(log.valoresParseados) && log.valoresParseados[0] && typeof log.valoresParseados[0] === 'object'
-                            ? log.valoresParseados.map((v, i) => {
-                                if (v.fuerza1 !== undefined && v.fuerza2 !== undefined) {
-                                  return `(${v.fuerza1?.toFixed(2)}, ${v.fuerza2?.toFixed(2)}) t:${v.timestamp}`;
-                                } else if (v.valor !== undefined) {
-                                  return `${v.valor?.toFixed(2)} t:${v.timestamp}`;
-                                } else {
-                                  return JSON.stringify(v);
-                                }
-                              }).join(', ')
-                            : Array.isArray(log.valoresParseados) && typeof log.valoresParseados[0] === 'number'
-                              ? log.valoresParseados.map((v, i) => v?.toFixed(2)).join(', ')
-                              : log.valoresParseados.join(', ')
-                        }
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-            <button onClick={() => setShowModal(false)} style={{marginTop: '15px'}}>Cerrar</button>
-          </div>
-        </>
-      )}
+      <RawDataLog show={showModal} onClose={() => setShowModal(false)} rawDataLogs={rawDataLogs} />
+      <USBLog usbRawLogs={usbRawLogs} />
       {showNombreModal && (
         <>
           <div style={overlayStyles} onClick={() => setShowNombreModal(false)} />
@@ -546,19 +430,6 @@ export default function App() {
         <label>ID de máquina (auto): </label>
         <input type="text" value={idMachine} disabled style={{ width: 260, marginLeft: 8 }} />
       </div>
-      {modoConexion === 'usb' && usbRawLogs.length > 0 && (
-        <div style={{ margin: '20px 0', background: '#f8f9fa', borderRadius: 6, padding: 12 }}>
-          <h2 style={{ color: '#007bff' }}>Log de Datos Crudos Recibidos por USB</h2>
-          <ul style={{ listStyleType: 'none', padding: 0 }}>
-            {usbRawLogs.map((log, idx) => (
-              <li key={idx} style={{ borderBottom: '1px solid #eee', padding: '6px 0', fontSize: '0.95em' }}>
-                <strong>[{new Date(log.timestamp).toLocaleTimeString()}]</strong>:
-                <div style={{ background: '#e9ecef', borderRadius: 4, padding: 4, fontFamily: 'monospace', marginTop: 2 }}>{log.data}</div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }

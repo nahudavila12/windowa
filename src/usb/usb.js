@@ -5,6 +5,7 @@ const { parseLibreString } = require('../libre/parser');
 const { parseDinamometroHexString } = require('../dinamometro/parser');
 const { parseBalanceHexString } = require('../balance/parser');
 const { parse1kHzHexString } = require('../balance/parser_1khz');
+const { parseBalanceAsciiString } = require('../balance/parser_ascii');
 const { v4: uuidv4 } = require('uuid');
 
 let usbPort = null;
@@ -63,23 +64,40 @@ function abrirPuertoUSB(path, baudRate = 115200) {
           }
         });
       } else if (tipoDispositivo === 'Valkyria Platform') {
+        // Para la plataforma llegan líneas ASCII con "fuerza1\tfuerza2\n" a 80 Hz,
+        // pero también pueden llegar ráfagas hexadecimales para 1 kHz.
         usbPort.on('data', (data) => {
-          console.log('[USB] Recibido (Platform) buffer:', data);
+          const ascii = data.toString('utf8');
           const hexString = data.toString('hex');
-          console.log('[USB] Recibido (Platform) hexString:', hexString);
-          // Detectar si es 1kHz o 80Hz por la frecuencia de llegada o el tamaño del paquete
+          console.log('[USB] Recibido (Platform) ascii:', ascii.replace(/\r|\n/g, ''));
           let parsed = [];
-          if (hexString.length > 120) {
-            parsed = parse1kHzHexString(hexString);
-            console.log('[USB] Parseado (Platform 1kHz):', parsed);
-          } else {
-            parsed = parseBalanceHexString(hexString);
-            console.log('[USB] Parseado (Platform 80Hz):', parsed);
+
+          // Intentar parsear como ASCII "f1\tf2"
+          if (ascii.includes('\t')) {
+            parsed = parseBalanceAsciiString(ascii);
+            if (parsed.length) {
+              console.log('[USB] Parseado (Platform ASCII):', parsed);
+            }
           }
-          if (onDataCallback) onDataCallback(hexString, parsed);
-          if (hexString === '49') { // 'I'
-            usbPort.write(Buffer.from(`X:${idMachine}\n`));
-          } else if (hexString === '52') { // 'R'
+
+          // Si ASCII no produjo resultados, intentar parsear como hex (80 Hz o 1 kHz)
+          if (!parsed.length) {
+            if (hexString.length > 120) {
+              parsed = parse1kHzHexString(hexString);
+              console.log('[USB] Parseado (Platform 1kHz HEX):', parsed);
+            } else {
+              parsed = parseBalanceHexString(hexString);
+              console.log('[USB] Parseado (Platform 80Hz HEX):', parsed);
+            }
+          }
+
+          const rawForFront = ascii.trim() || hexString;
+          if (onDataCallback) onDataCallback(rawForFront, parsed);
+
+          // Manejo de comandos 'I' y 'R' (en ASCII)
+          if (ascii.trim() === 'I') {
+            usbPort.write(`X:${idMachine}\n`);
+          } else if (ascii.trim() === 'R') {
             contador = 0;
           }
         });

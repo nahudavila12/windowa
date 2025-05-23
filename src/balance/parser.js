@@ -1,4 +1,4 @@
-// Parser exclusivo para datos de la plataforma Balance 80Hz (Ivolution)
+// Parser plataforma Balance 
 // Recibe un string hexadecimal largo y devuelve un array de objetos {fuerza1, fuerza2, timestamp}
 
 /**
