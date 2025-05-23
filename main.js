@@ -196,6 +196,12 @@ ipcMain.handle('set-id-machine', async (event, newId) => {
 // Abrir puerto USB
 ipcMain.handle('abrir-puerto-usb', async (event, path, baudRate = 115200) => {
   usb.setOnDataCallback((raw, parsed) => {
+    // Mostrar siempre los datos crudos
+    console.log('[USB][CRUDO]', raw);
+    // Mostrar los datos parseados solo si el tipo es encoder
+    if (usb.idMachine && usb.tipoDispositivo === 'Valkyria Free Charge 5') {
+      console.log('[USB][PARSEADO]', parsed);
+    }
     mainWindow.webContents.send('usb-datos-crudos', { raw, parsed, timestamp: Date.now() });
   });
   await usb.abrirPuertoUSB(path, baudRate);
