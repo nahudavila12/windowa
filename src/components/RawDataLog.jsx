@@ -51,7 +51,7 @@ export default function RawDataLog({ show, onClose, rawDataLogs }) {
           <ul style={{ listStyleType: 'none', padding: 0}}>
             {rawDataLogs.map((log, idx) => (
               <li key={idx} style={listItemStyles}>
-                <strong>[{log.timestamp}]</strong> de {log.characteristicId}:
+                <strong>[{log.timestampStr || log.timestamp}]</strong> de {log.characteristicId}:
                 <div style={codeBlockStyles}><strong>Crudo:</strong> {log.data}</div>
                 {log.valoresParseados && log.valoresParseados.length > 0 && (
                   <div style={{marginTop: 4, color: '#007bff'}}>
@@ -59,9 +59,9 @@ export default function RawDataLog({ show, onClose, rawDataLogs }) {
                       Array.isArray(log.valoresParseados) && log.valoresParseados[0] && typeof log.valoresParseados[0] === 'object'
                         ? log.valoresParseados.map((v, i) => {
                             if (v.fuerza1 !== undefined && v.fuerza2 !== undefined) {
-                              return `(${v.fuerza1?.toFixed(2)}, ${v.fuerza2?.toFixed(2)}) t:${v.timestamp}`;
+                              return `(${v.fuerza1?.toFixed(2)}, ${v.fuerza2?.toFixed(2)}) t:${v.timestampStr || v.timestamp}`;
                             } else if (v.valor !== undefined) {
-                              return `${v.valor?.toFixed(2)} t:${v.timestamp}`;
+                              return `${v.valor?.toFixed(2)} t:${v.timestampStr || v.timestamp}`;
                             } else {
                               return JSON.stringify(v);
                             }

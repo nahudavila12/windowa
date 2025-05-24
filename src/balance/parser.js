@@ -41,7 +41,8 @@ export function parseBalanceHexString(hexString) {
           console.log('[parseBalanceHexString] OUTLIER descartado:', { fuerza1, fuerza2, bloque });
           continue;
         }
-        const obj = { fuerza1, fuerza2, timestamp: Date.now() };
+        const ts = Date.now();
+        const obj = { fuerza1, fuerza2, timestamp: ts, timestampStr: formatTimestamp(ts) };
         pares.push(obj);
         console.log('[parseBalanceHexString] bloque válido:', bloque, '->', obj);
         i += 11; // Salta al siguiente bloque
@@ -53,4 +54,9 @@ export function parseBalanceHexString(hexString) {
   }
   console.log('[parseBalanceHexString] resultado final:', pares);
   return pares;
+}
+
+function formatTimestamp(ts) {
+  const date = new Date(ts);
+  return date.toLocaleString('es-ES', { hour12: false }) + '.' + String(date.getMilliseconds()).padStart(3, '0');
 } 

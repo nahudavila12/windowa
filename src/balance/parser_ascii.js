@@ -18,5 +18,10 @@ export function parseBalanceAsciiString(asciiLine) {
   const umbralOutlier = 200; // igual que parser hex
   if (isNaN(num1) || isNaN(num2)) return [];
   if (Math.abs(num1) > umbralOutlier || Math.abs(num2) > umbralOutlier) return [];
-  return [{ fuerza1: num1, fuerza2: num2, timestamp: Date.now() }];
+  const ts = Date.now();
+  function formatTimestamp(ts) {
+    const date = new Date(ts);
+    return date.toLocaleString('es-ES', { hour12: false }) + '.' + String(date.getMilliseconds()).padStart(3, '0');
+  }
+  return [{ fuerza1: num1, fuerza2: num2, timestamp: ts, timestampStr: formatTimestamp(ts) }];
 } 

@@ -12,16 +12,16 @@ export default function TestList({ tests, exportTestsToCSV }) {
           {test.tipo === 'Valkyria Platform' ? (
             <>
               <br/>
-              <em>Canal 1:</em> {test.valores.map((v, i) => v.fuerza1 !== undefined ? `${v.fuerza1?.toFixed(2)} (t: ${v.timestamp})` : '').join(', ')}<br/>
-              <em>Canal 2:</em> {test.valores.map((v, i) => v.fuerza2 !== undefined ? `${v.fuerza2?.toFixed(2)} (t: ${v.timestamp})` : '').join(', ')}<br/>
+              <em>Canal 1:</em> {test.valores.map((v, i) => v.fuerza1 !== undefined ? `${v.fuerza1?.toFixed(2)} (t: ${v.timestampStr || v.timestamp})` : '').join(', ')}<br/>
+              <em>Canal 2:</em> {test.valores.map((v, i) => v.fuerza2 !== undefined ? `${v.fuerza2?.toFixed(2)} (t: ${v.timestampStr || v.timestamp})` : '').join(', ')}<br/>
             </>
           ) : test.tipo === 'Valkyria Free Charge 5' ? (
             <>
-              <em>Distancias:</em> {test.valores.map((v, i) => v?.valor !== undefined ? `${v.valor.toFixed(2)} (t: ${v.timestamp})` : v).join(', ')}<br/>
+              <em>Distancias:</em> {test.valores.map((v, i) => v?.valor !== undefined ? `${v.valor.toFixed(2)} (t: ${v.timestampStr || v.timestamp})` : v).join(', ')}<br/>
             </>
           ) : test.tipo === 'Valkyria Dynamometer' ? (
             <>
-              <em>Fuerzas:</em> {test.valores.map((v, i) => v?.valor !== undefined ? `${v.valor.toFixed(2)} (t: ${v.timestamp})` : v).join(', ')}<br/>
+              <em>Fuerzas:</em> {test.valores.map((v, i) => v?.valor !== undefined ? `${v.valor.toFixed(2)} (t: ${v.timestampStr || v.timestamp})` : v).join(', ')}<br/>
             </>
           ) : (
             <>

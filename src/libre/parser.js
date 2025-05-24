@@ -16,6 +16,11 @@ function hexToAscii(hex) {
   return str;
 }
 
+function formatTimestamp(ts) {
+  const date = new Date(ts);
+  return date.toLocaleString('es-ES', { hour12: false }) + '.' + String(date.getMilliseconds()).padStart(3, '0');
+}
+
 export function parseLibreString(dataString) {
   console.log('[parseLibreString] dataString recibido:', dataString);
   // Si el string parece hexadecimal, lo convierto a ASCII
@@ -35,7 +40,8 @@ export function parseLibreString(dataString) {
         console.log('[parseLibreString] OUTLIER descartado:', valor);
         continue;
       }
-      const obj = { valor, timestamp: Date.now() };
+      const ts = Date.now();
+      const obj = { valor, timestamp: ts, timestampStr: formatTimestamp(ts) };
       resultados.push(obj);
       console.log('[parseLibreString] objeto parseado:', obj);
     } else {

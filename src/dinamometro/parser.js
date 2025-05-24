@@ -9,6 +9,11 @@ function hexToAscii(hex) {
   return str;
 }
 
+function formatTimestamp(ts) {
+  const date = new Date(ts);
+  return date.toLocaleString('es-ES', { hour12: false }) + '.' + String(date.getMilliseconds()).padStart(3, '0');
+}
+
 // Recibe un array de strings hexadecimales
 export function parseDinamometroData(datosHex) {
   let buffer = '';
@@ -19,7 +24,7 @@ export function parseDinamometroData(datosHex) {
     if (ascii === '\r\n') {
       if (buffer.length > 0) {
         const num = parseFloat(buffer);
-        if (!isNaN(num)) resultados.push({ valor: num, timestamp: Date.now() });
+        if (!isNaN(num)) resultados.push({ valor: num, timestamp: Date.now(), timestampStr: formatTimestamp(Date.now()) });
         buffer = '';
       }
     } else {
@@ -43,7 +48,7 @@ export function parseDinamometroHexString(hexString) {
       if (buffer.length > 0) {
         const num = parseFloat(buffer);
         if (!isNaN(num)) {
-          resultados.push({ valor: num, timestamp: Date.now() });
+          resultados.push({ valor: num, timestamp: Date.now(), timestampStr: formatTimestamp(Date.now()) });
           console.log('[parseDinamometroHexString] valor parseado:', num);
         }
         buffer = '';
@@ -56,7 +61,7 @@ export function parseDinamometroHexString(hexString) {
   if (buffer.length > 0) {
     const num = parseFloat(buffer);
     if (!isNaN(num)) {
-      resultados.push({ valor: num, timestamp: Date.now() });
+      resultados.push({ valor: num, timestamp: Date.now(), timestampStr: formatTimestamp(Date.now()) });
       console.log('[parseDinamometroHexString] valor final parseado:', num);
     }
   }
