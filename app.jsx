@@ -456,6 +456,14 @@ export default function App() {
           </div>
         )
       )}
+      {/* Botones de test para USB */}
+      {modoConexion === 'usb' && usbConectado && (
+        <div style={{ margin: '20px 0', padding: 10, background: '#f8f9fa', borderRadius: 4 }}>
+          <h3>Test por USB</h3>
+          <button onClick={handleStartTest} disabled={isTestRunning} style={{marginRight: 10}}>Iniciar test</button>
+          <button onClick={handleEndTest} disabled={!isTestRunning}>Finalizar test</button>
+        </div>
+      )}
       {connectedDevice && (
         <div>
           <h2>Información del Dispositivo Conectado:</h2>
