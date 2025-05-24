@@ -145,6 +145,20 @@ function filtrarPlanosAlFinalPlataforma(arr, N = 10) {
   return arr;
 }
 
+// Función para mapear idMachine a nombre de dispositivo
+function getNombreDispositivo(id) {
+  switch (id) {
+    case '10':
+      return 'Valkyria Dynamometer';
+    case '11':
+      return 'Valkyria Free Charge 5';
+    case '12':
+      return 'Valkyria Platform';
+    default:
+      return 'Desconocido';
+  }
+}
+
 export default function App() {
   const [status, setStatus] = useState('Esperando acciones...');
   const [devices, setDevices] = useState([]);
@@ -166,6 +180,7 @@ export default function App() {
   const [usbConectado, setUSBConectado] = useState(false);
   const [idMachine, setIdMachine] = useState('');
   const [usbRawLogs, setUsbRawLogs] = useState([]);
+  const [usbError, setUsbError] = useState(null);
 
   useEffect(() => {
     // Suscribirse a eventos de electronAPI
@@ -215,7 +230,27 @@ export default function App() {
     });
 
     if (modoConexion === 'usb') {
-      window.electronAPI.listarPuertosUSB().then(setPuertosUSB);
+      setConnectedDevice(null);
+      setIsScanning(false);
+      setHeartRate(null);
+      setHrHistory([]);
+      setRawDataLogs([]);
+      setUSBConectado(false);
+      setPuertoUSBSeleccionado('');
+      setUsbError(null);
+      window.electronAPI.listarPuertosUSB()
+        .then(puertos => {
+          console.log('Puertos USB detectados:', puertos);
+          setPuertosUSB(puertos);
+          if (!puertos || puertos.length === 0) {
+            setUsbError('No se detectaron puertos USB.');
+          }
+        })
+        .catch(err => {
+          console.error('Error al listar puertos USB:', err);
+          setUsbError('Error al listar puertos USB: ' + err.message);
+          setPuertosUSB([]);
+        });
       const removeUSB = window.electronAPI.onUSBDatosCrudos(({ raw, parsed, timestamp }) => {
         console.log('[FRONT][USB] Datos crudos:', raw);
         console.log('[FRONT][USB] Valores parseados:', parsed);
@@ -240,6 +275,12 @@ export default function App() {
         removeRawData();
         removeUSB();
       };
+    }
+
+    if (modoConexion === 'bluetooth') {
+      setUSBConectado(false);
+      setPuertoUSBSeleccionado('');
+      setUsbError(null);
     }
 
     // Obtener el idMachine generado automáticamente desde el backend al iniciar
@@ -347,6 +388,11 @@ export default function App() {
     <div style={{ fontFamily: 'sans-serif', margin: 20 }}>
       <h1>Monitor BLE y Dispositivos Ivolution</h1>
       <div style={{ marginBottom: 15, padding: 10, background: '#e9ecef', borderRadius: 4 }}>{status}</div>
+      {modoConexion === 'usb' && idMachine && (
+        <div style={{ marginBottom: 10, fontWeight: 'bold', color: '#28a745' }}>
+          Dispositivo USB conectado: {getNombreDispositivo(idMachine)} (ID: {idMachine})
+        </div>
+      )}
       <div style={{ marginBottom: 10 }}>
         <label>Tipo de dispositivo: </label>
         <select value={tipoDispositivo} onChange={handleTipoDispositivoChange}>
@@ -362,21 +408,54 @@ export default function App() {
           <option value="usb">USB</option>
         </select>
       </div>
-      <DeviceSelector
-        modoConexion={modoConexion}
-        isScanning={isScanning}
-        handleScan={handleScan}
-        handleStopScan={handleStopScan}
-        devices={devices}
-        handleConnect={handleConnect}
-        connectedDevice={connectedDevice}
-        puertosUSB={puertosUSB}
-        puertoUSBSeleccionado={puertoUSBSeleccionado}
-        setPuertoUSBSeleccionado={setPuertoUSBSeleccionado}
-        handleConectarUSB={handleConectarUSB}
-        usbConectado={usbConectado}
-        handleDesconectarUSB={handleDesconectarUSB}
-      />
+      {/* DeviceSelector para Bluetooth */}
+      {modoConexion === 'bluetooth' && (
+        <DeviceSelector
+          modoConexion={modoConexion}
+          isScanning={isScanning}
+          handleScan={handleScan}
+          handleStopScan={handleStopScan}
+          devices={devices}
+          handleConnect={handleConnect}
+          connectedDevice={connectedDevice}
+          puertosUSB={puertosUSB}
+          puertoUSBSeleccionado={puertoUSBSeleccionado}
+          setPuertoUSBSeleccionado={setPuertoUSBSeleccionado}
+          handleConectarUSB={handleConectarUSB}
+          usbConectado={usbConectado}
+          handleDesconectarUSB={handleDesconectarUSB}
+        />
+      )}
+      {/* DeviceSelector o mensaje para USB */}
+      {modoConexion === 'usb' && (
+        usbError ? (
+          <div style={{ color: 'red', marginBottom: 20, fontWeight: 'bold' }}>
+            {usbError}
+          </div>
+        ) : puertosUSB.length > 0 ? (
+          <DeviceSelector
+            modoConexion={modoConexion}
+            isScanning={isScanning}
+            handleScan={handleScan}
+            handleStopScan={handleStopScan}
+            devices={devices}
+            handleConnect={handleConnect}
+            connectedDevice={connectedDevice}
+            puertosUSB={puertosUSB}
+            puertoUSBSeleccionado={puertoUSBSeleccionado}
+            setPuertoUSBSeleccionado={setPuertoUSBSeleccionado}
+            handleConectarUSB={handleConectarUSB}
+            usbConectado={usbConectado}
+            handleDesconectarUSB={handleDesconectarUSB}
+          />
+        ) : (
+          <div style={{ color: 'red', marginBottom: 20, fontWeight: 'bold' }}>
+            Se debe conectar un USB
+            <br />
+            <span style={{ fontSize: '0.9em', color: '#555' }}>puertosUSB: {JSON.stringify(puertosUSB)}</span>
+          </div>
+        )
+      )}
       {connectedDevice && (
         <div>
           <h2>Información del Dispositivo Conectado:</h2>
@@ -395,6 +474,28 @@ export default function App() {
                   <Tooltip />
                   <Legend />
                   <Line type="monotone" dataKey="hr" stroke="#8884d8" activeDot={{ r: 8 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+          {/* Gráfico de distancia procesada solo para Free Charge por Bluetooth */}
+          {idMachine === '11' && rawDataLogs.length > 0 && (
+            <div style={{ marginTop: 30 }}>
+              <h3>Distancia procesada (Free Charge)</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart
+                  data={
+                    (rawDataLogs.find(log => Array.isArray(log.valoresParseados) && log.valoresParseados.length > 0)?.valoresParseados || [])
+                      .map((dist, idx) => ({ muestra: idx + 1, distancia: dist }))
+                  }
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="muestra" label={{ value: 'Muestra', position: 'insideBottomRight', offset: 0 }} />
+                  <YAxis label={{ value: 'Distancia (m)', angle: -90, position: 'insideLeft' }} />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="distancia" stroke="#28a745" dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
