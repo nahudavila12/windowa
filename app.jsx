@@ -360,16 +360,26 @@ export default function App() {
 
   const handleConectarUSB = async () => {
     if (!puertoUSBSeleccionado) return;
-    await window.electronAPI.abrirPuertoUSB(puertoUSBSeleccionado, 115200);
-    setUSBConectado(true);
-    setStatus(`Conectado por USB a ${puertoUSBSeleccionado}`);
-    setRawDataLogs([]);
+    try {
+      await window.electronAPI.abrirPuertoUSB(puertoUSBSeleccionado, 115200);
+      setUSBConectado(true);
+      setStatus(`Conectado por USB a ${puertoUSBSeleccionado}`);
+      setRawDataLogs([]);
+    } catch (err) {
+      setStatus('Error al conectar USB: ' + err.message);
+      setUsbError('No se pudo abrir el puerto USB. Puede estar ocupado o no disponible.');
+    }
   };
 
   const handleDesconectarUSB = async () => {
-    await window.electronAPI.cerrarPuertoUSB();
-    setUSBConectado(false);
-    setStatus('USB desconectado.');
+    try {
+      await window.electronAPI.cerrarPuertoUSB();
+      setUSBConectado(false);
+      setStatus('USB desconectado.');
+    } catch (err) {
+      setStatus('Error al desconectar USB: ' + err.message);
+      setUsbError('No se pudo cerrar el puerto USB. Intenta desconectar el dispositivo físicamente.');
+    }
   };
 
   const handleIdMachineChange = async (e) => {
@@ -515,7 +525,41 @@ export default function App() {
           <TestList tests={tests} exportTestsToCSV={exportTestsToCSV} />
         </div>
       )}
-      <RawDataLog show={showModal} onClose={() => setShowModal(false)} rawDataLogs={rawDataLogs} />
+      {/* Gráfico y tests para USB */}
+      {modoConexion === 'usb' && usbConectado && (
+        <div>
+          <h2>Datos procesados por USB</h2>
+          {/* Gráfico para USB */}
+          {usbRawLogs.length > 0 && (
+            <div style={{ marginTop: 30 }}>
+              <h3>Gráfico de datos USB</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart
+                  data={
+                    usbRawLogs
+                      .filter(log => Array.isArray(log.valoresParseados) && log.valoresParseados.length > 0)
+                      .flatMap(log => log.valoresParseados.map((valor, idx) => ({
+                        muestra: idx + 1,
+                        ...(typeof valor === 'object' ? valor : { valor })
+                      })))
+                  }
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="muestra" label={{ value: 'Muestra', position: 'insideBottomRight', offset: 0 }} />
+                  <YAxis label={{ value: 'Valor', angle: -90, position: 'insideLeft' }} />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="valor" stroke="#28a745" dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+          {/* Tests para USB */}
+          <TestList tests={tests} exportTestsToCSV={exportTestsToCSV} />
+        </div>
+      )}
+      <RawDataLog show={showModal} onClose={() => setShowModal(false)} rawDataLogs={modoConexion === 'usb' ? usbRawLogs : rawDataLogs} />
       <USBLog usbRawLogs={usbRawLogs} />
       {showNombreModal && (
         <>

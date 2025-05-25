@@ -47,8 +47,8 @@ function abrirPuertoUSB(path, baudRate = 115200) {
           const timestampStr = date.toLocaleString('es-ES', { hour12: false }) + '.' + String(date.getMilliseconds()).padStart(3, '0');
           const parsed = parseLibreString(data);
           console.log('[USB] Recibido (Valkyria Free Charge 5):', data);
-          console.log('[USB] Parseado (Free Charge 5):', parsed);
-          if (onDataCallback) onDataCallback({ raw: data, parsed, timestamp, timestampStr });
+          console.log('[USB] Parseado (Valkyria Free Charge 5):', parsed);
+          if (onDataCallback) onDataCallback(data, parsed);
           if (data === 'I') {
             usbPort.write(`X:${idMachine}\n`);
           } else if (data === 'R') {
@@ -117,11 +117,21 @@ function abrirPuertoUSB(path, baudRate = 115200) {
 }
 
 function cerrarPuertoUSB() {
-  if (usbPort) {
-    usbPort.close();
-    usbPort = null;
-    usbParser = null;
-  }
+  return new Promise((resolve, reject) => {
+    if (usbPort) {
+      usbPort.close((err) => {
+        if (err) {
+          console.error('Error al cerrar el puerto USB:', err);
+          return reject(err);
+        }
+        usbPort = null;
+        usbParser = null;
+        resolve();
+      });
+    } else {
+      resolve();
+    }
+  });
 }
 
 module.exports = {
