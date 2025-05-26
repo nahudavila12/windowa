@@ -461,13 +461,15 @@ export default function App() {
         )
       )}
       {/* Botones de test para USB */}
-      {modoConexion === 'usb' && usbConectado && (
+      {/* [CAMBIO RECIENTE: AI 2024-06-XX] Eliminado iniciar/finalizar test por USB, solo disponible para Bluetooth */}
+      {modoConexion === 'bluetooth' && connectedDevice && (
         <div style={{ margin: '20px 0', padding: 10, background: '#f8f9fa', borderRadius: 4 }}>
-          <h3>Test por USB</h3>
+          <h3>Test por Bluetooth</h3>
           <button onClick={handleStartTest} disabled={isTestRunning} style={{marginRight: 10}}>Iniciar test</button>
           <button onClick={handleEndTest} disabled={!isTestRunning}>Finalizar test</button>
         </div>
       )}
+      {/* [FIN CAMBIO RECIENTE: AI 2024-06-XX] */}
       {connectedDevice && (
         <div>
           <h2>Información del Dispositivo Conectado:</h2>
@@ -514,8 +516,6 @@ export default function App() {
           )}
           <button onClick={handleDisconnect}>Desconectar</button>
           <button onClick={() => setShowModal(true)}>Ver datos recibidos</button>
-          <button onClick={handleStartTest} disabled={isTestRunning}>Iniciar test</button>
-          <button onClick={handleEndTest} disabled={!isTestRunning}>Finalizar test</button>
           <TestList tests={tests} exportTestsToCSV={exportTestsToCSV} />
         </div>
       )}
