@@ -38,18 +38,13 @@ function abrirPuertoUSB(path, baudRate = 115200) {
       if (err) return reject(err);
       // Selección dinámica de parser según tipo de dispositivo
       if (tipoDispositivo === 'Valkyria Free Charge 5') {
-        usbParser = usbPort.pipe(new ReadlineParser({ delimiter: 'R' }));
+        usbParser = usbPort.pipe(new ReadlineParser({ delimiter: '\n' }));
         usbParser.on('data', (line) => {
           let data = line.trim();
-          if (!data.endsWith('R')) data += 'R';
-          const timestamp = Date.now();
-          const date = new Date(timestamp);
-          const timestampStr = date.toLocaleString('es-ES', { hour12: false }) + '.' + String(date.getMilliseconds()).padStart(3, '0');
-          const hexString = Buffer.from(data, 'utf8').toString('hex');
-          const parsed = parseLibreString(hexString);
+          const parsed = parseLibreString(data);
           console.log('[USB] Recibido (Valkyria Free Charge 5):', data);
           console.log('[USB] Parseado (Free Charge 5):', parsed);
-          if (onDataCallback) onDataCallback({  parsed , timestampStr });
+          if (onDataCallback) onDataCallback(data, parsed);
           if (data === 'I') {
             usbPort.write(`X:${idMachine}\n`);
           } else if (data === 'R') {
