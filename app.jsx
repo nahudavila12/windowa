@@ -332,6 +332,10 @@ export default function App() {
   };
 
   const handleStartTest = () => {
+    if (modoConexion === 'usb' && !usbConectado) {
+      setStatus('No hay conexión USB activa. No se puede iniciar el test.');
+      return;
+    }
     setCurrentTest([]);
     setIsTestRunning(true);
     setStatus('Test iniciado');

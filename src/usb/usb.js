@@ -118,11 +118,23 @@ function abrirPuertoUSB(path, baudRate = 115200) {
 }
 
 function cerrarPuertoUSB() {
-  if (usbPort) {
-    usbPort.close();
-    usbPort = null;
-    usbParser = null;
-  }
+  return new Promise((resolve, reject) => {
+    if (usbPort && usbPort.isOpen) {
+      usbPort.close((err) => {
+        if (err) {
+          console.error('Error al cerrar el puerto USB:', err);
+          return reject(err);
+        }
+        usbPort = null;
+        usbParser = null;
+        resolve();
+      });
+    } else {
+      usbPort = null;
+      usbParser = null;
+      resolve();
+    }
+  });
 }
 
 module.exports = {
