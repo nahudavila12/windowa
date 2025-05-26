@@ -45,10 +45,11 @@ function abrirPuertoUSB(path, baudRate = 115200) {
           const timestamp = Date.now();
           const date = new Date(timestamp);
           const timestampStr = date.toLocaleString('es-ES', { hour12: false }) + '.' + String(date.getMilliseconds()).padStart(3, '0');
-          const parsed = parseLibreString(data);
+          const hexString = Buffer.from(data, 'utf8').toString('hex');
+          const parsed = parseLibreString(hexString);
           console.log('[USB] Recibido (Valkyria Free Charge 5):', data);
           console.log('[USB] Parseado (Free Charge 5):', parsed);
-          if (onDataCallback) onDataCallback({ raw: data, parsed, timestamp, timestampStr });
+          if (onDataCallback) onDataCallback({  parsed , timestampStr });
           if (data === 'I') {
             usbPort.write(`X:${idMachine}\n`);
           } else if (data === 'R') {
