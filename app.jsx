@@ -412,7 +412,6 @@ export default function App() {
           <option value="usb">USB</option>
         </select>
       </div>
-      {/* DeviceSelector para Bluetooth */}
       {modoConexion === 'bluetooth' && (
         <DeviceSelector
           modoConexion={modoConexion}
@@ -430,7 +429,6 @@ export default function App() {
           handleDesconectarUSB={handleDesconectarUSB}
         />
       )}
-      {/* DeviceSelector o mensaje para USB */}
       {modoConexion === 'usb' && (
         usbError ? (
           <div style={{ color: 'red', marginBottom: 20, fontWeight: 'bold' }}>
@@ -460,8 +458,6 @@ export default function App() {
           </div>
         )
       )}
-      {/* Botones de test para USB */}
-      {/* [CAMBIO RECIENTE: AI 2024-06-XX] Eliminado iniciar/finalizar test por USB, solo disponible para Bluetooth */}
       {modoConexion === 'bluetooth' && connectedDevice && (
         <div style={{ margin: '20px 0', padding: 10, background: '#f8f9fa', borderRadius: 4 }}>
           <h3>Test por Bluetooth</h3>
@@ -469,7 +465,6 @@ export default function App() {
           <button onClick={handleEndTest} disabled={!isTestRunning}>Finalizar test</button>
         </div>
       )}
-      {/* [FIN CAMBIO RECIENTE: AI 2024-06-XX] */}
       {connectedDevice && (
         <div>
           <h2>Información del Dispositivo Conectado:</h2>
@@ -492,7 +487,6 @@ export default function App() {
               </ResponsiveContainer>
             </div>
           )}
-          {/* Gráfico de distancia procesada solo para Free Charge por Bluetooth */}
           {idMachine === '11' && rawDataLogs.length > 0 && (
             <div style={{ marginTop: 30 }}>
               <h3>Distancia procesada (Free Charge)</h3>
