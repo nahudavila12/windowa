@@ -80,39 +80,54 @@ async function connectDevice(event, deviceId) {
           char.subscribe((err) => {
             if (err) {
               console.error(`Error al suscribir a ${char.uuid} para ${deviceId}:`, err);
+              if (mainWindow) {
+                mainWindow.webContents.send('ble-error', `Error al suscribir a ${char.uuid}: ${err.message}`);
+              }
             } else {
               console.log(`  Suscrito exitosamente a: ${char.uuid}`);
             }
           });
 
           char.on('data', (data, isNotification) => {
-            const rawDataString = data.toString('hex');
-            console.log(`Datos recibidos de ${char.uuid} (${isNotification ? 'notificación' : 'indicación'}): ${rawDataString}`);
-            if (mainWindow) mainWindow.webContents.send('ble-raw-data-update', {
-              deviceId: peripheral.id,
-              characteristicId: char.uuid,
-              data: rawDataString,
-              timestamp: new Date().toLocaleTimeString()
-            });
-
-            // Lógica específica para Heart Rate (si es la característica de HR)
-            if (char.uuid === '2a37') { // UUID de Heart Rate Measurement
-              let hr = 0;
-              if (data.length > 1) {
-                if ((data[0] & 0x01) === 0) {
-                  hr = data[1];
-                } else {
-                  if (data.length >= 3) {
-                    hr = data.readUInt16LE(1);
-                  } else {
-                    console.warn("Datos de HR en formato UINT16 pero longitud insuficiente.");
-                  }
-                }
-              } else if (data.length === 1) {
-                hr = data[0];
+            try {
+              // Verifica que la característica no esté destruida
+              if (char.destroyed) {
+                console.warn('Intento de usar una característica destruida:', char.uuid);
+                return;
               }
-              if (hr > 0 && mainWindow) {
-                mainWindow.webContents.send('ble-hr-update', hr);
+              const rawDataString = data.toString('hex');
+              console.log(`Datos recibidos de ${char.uuid} (${isNotification ? 'notificación' : 'indicación'}): ${rawDataString}`);
+              if (mainWindow) mainWindow.webContents.send('ble-raw-data-update', {
+                deviceId: peripheral.id,
+                characteristicId: char.uuid,
+                data: rawDataString,
+                timestamp: new Date().toLocaleTimeString()
+              });
+
+              // Lógica específica para Heart Rate (si es la característica de HR)
+              if (char.uuid === '2a37') { // UUID de Heart Rate Measurement
+                let hr = 0;
+                if (data.length > 1) {
+                  if ((data[0] & 0x01) === 0) {
+                    hr = data[1];
+                  } else {
+                    if (data.length >= 3) {
+                      hr = data.readUInt16LE(1);
+                    } else {
+                      console.warn("Datos de HR en formato UINT16 pero longitud insuficiente.");
+                    }
+                  }
+                } else if (data.length === 1) {
+                  hr = data[0];
+                }
+                if (hr > 0 && mainWindow) {
+                  mainWindow.webContents.send('ble-hr-update', hr);
+                }
+              }
+            } catch (e) {
+              console.error('Error procesando datos BLE:', e);
+              if (mainWindow) {
+                mainWindow.webContents.send('ble-error', `Error procesando datos BLE: ${e.message}`);
               }
             }
           });
@@ -127,6 +142,16 @@ async function connectDevice(event, deviceId) {
 async function disconnectDevice(event, deviceId) {
   const peripheral = noble._peripherals[deviceId];
   if (peripheral) {
+    // Limpia listeners de características si es posible
+    if (peripheral.services) {
+      peripheral.services.forEach(service => {
+        if (service.characteristics) {
+          service.characteristics.forEach(char => {
+            char.removeAllListeners('data');
+          });
+        }
+      });
+    }
     peripheral.disconnect();
   }
   return { success: true };
