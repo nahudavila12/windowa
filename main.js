@@ -92,3 +92,10 @@ ipcMain.handle('get-id-machine', async () => {
   const usb = require('./src/usb/usb');
   return usb.idMachine || '';
 });
+
+process.on('uncaughtException', (err) => {
+  console.error('Excepción no capturada:', err);
+  if (mainWindow) {
+    mainWindow.webContents.send('ble-error', `Excepción no capturada: ${err.message}`);
+  }
+});
